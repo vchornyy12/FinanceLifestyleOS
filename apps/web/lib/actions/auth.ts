@@ -51,24 +51,38 @@ export async function registerUser(
   const { email, password } = parsed.data
   const supabase = await createClient()
 
-  const { error } = await supabase.auth.signUp({ email, password })
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+    },
+  })
 
   if (error) {
-    const message =
-      error.message === 'User already registered'
-        ? 'An account with this email already exists'
-        : error.message
-    return { error: message }
+    if (error.message === 'User already registered') {
+      // Silent success — don't reveal that the email is taken
+      return { success: 'Check your email to confirm your account.' }
+    }
+    // All other errors: generic message (don't leak error.message)
+    return { error: 'Something went wrong. Please try again.' }
   }
 
-  return { success: 'Check your email to confirm your account' }
+  return { success: 'Check your email to confirm your account.' }
 }
 
 // ---------------------------------------------------------------------------
 // Login / logout (T5)
 // ---------------------------------------------------------------------------
 
-export async function loginUser(prevState: unknown, formData: FormData) {
+export type LoginState = {
+  error?: string
+} | null
+
+export async function loginUser(
+  _prevState: LoginState,
+  formData: FormData,
+): Promise<LoginState> {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
 

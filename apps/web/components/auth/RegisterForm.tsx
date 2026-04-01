@@ -77,7 +77,7 @@ export default function RegisterForm() {
       </div>
 
       {state?.error && (
-        <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-400">
+        <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-400">
           {state.error}
         </p>
       )}
@@ -96,14 +96,16 @@ export default function RegisterForm() {
             type="email"
             autoComplete="email"
             required
+            aria-invalid={!!state?.fieldErrors?.email}
+            aria-describedby={state?.fieldErrors?.email ? 'email-error' : undefined}
             className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
             placeholder="you@example.com"
           />
-          {state?.fieldErrors?.email?.map((msg) => (
-            <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
-              {msg}
+          {state?.fieldErrors?.email?.[0] && (
+            <p id="email-error" className="mt-1 text-xs text-red-600 dark:text-red-400">
+              {state.fieldErrors.email[0]}
             </p>
-          ))}
+          )}
         </div>
 
         <div>
@@ -119,14 +121,16 @@ export default function RegisterForm() {
             type="password"
             autoComplete="new-password"
             required
+            aria-invalid={!!state?.fieldErrors?.password}
+            aria-describedby={state?.fieldErrors?.password ? 'password-error' : undefined}
             className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
             placeholder="Min 8 chars, include a number"
           />
-          {state?.fieldErrors?.password?.map((msg) => (
-            <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
-              {msg}
+          {state?.fieldErrors?.password?.[0] && (
+            <p id="password-error" className="mt-1 text-xs text-red-600 dark:text-red-400">
+              {state.fieldErrors.password[0]}
             </p>
-          ))}
+          )}
         </div>
 
         <div>
@@ -142,17 +146,16 @@ export default function RegisterForm() {
             type="password"
             autoComplete="new-password"
             required
+            aria-invalid={!!state?.fieldErrors?.confirmPassword}
+            aria-describedby={state?.fieldErrors?.confirmPassword ? 'confirm-password-error' : undefined}
             className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
             placeholder="••••••••"
           />
-          {state?.fieldErrors?.confirmPassword?.map((msg) => (
-            <p
-              key={msg}
-              className="mt-1 text-xs text-red-600 dark:text-red-400"
-            >
-              {msg}
+          {state?.fieldErrors?.confirmPassword?.[0] && (
+            <p id="confirm-password-error" className="mt-1 text-xs text-red-600 dark:text-red-400">
+              {state.fieldErrors.confirmPassword[0]}
             </p>
-          ))}
+          )}
         </div>
       </div>
 
