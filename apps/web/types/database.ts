@@ -33,7 +33,7 @@ export interface CategoryRow {
 export interface TransactionRow {
   id: string
   user_id: string
-  amount: number
+  amount: string
   merchant: string
   category_id: string | null
   date: string
@@ -66,7 +66,7 @@ export interface CategoryInsert {
 export interface TransactionInsert {
   id?: string
   user_id: string
-  amount: number
+  amount: string
   merchant: string
   category_id?: string | null
   date: string
@@ -82,7 +82,7 @@ export interface TransactionInsert {
 
 export type ProfileUpdate = Partial<Omit<ProfileRow, 'id' | 'created_at'>>
 
-export type CategoryUpdate = Partial<Omit<CategoryRow, 'id' | 'created_at'>>
+export type CategoryUpdate = Partial<Omit<CategoryRow, 'id' | 'user_id' | 'created_at'>>
 
 export type TransactionUpdate = Partial<Omit<TransactionRow, 'id' | 'user_id' | 'created_at'>>
 

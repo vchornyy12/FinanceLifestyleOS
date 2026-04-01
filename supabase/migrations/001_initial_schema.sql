@@ -55,12 +55,16 @@ CREATE TABLE public.transactions (
   CONSTRAINT transactions_pkey PRIMARY KEY (id)
 );
 
+ALTER TABLE public.transactions REPLICA IDENTITY FULL;
+
 -- ============================================================
 -- INDEXES
 -- ============================================================
-CREATE INDEX idx_transactions_user_id  ON public.transactions(user_id);
-CREATE INDEX idx_transactions_date     ON public.transactions(date DESC);
-CREATE INDEX idx_categories_user_id    ON public.categories(user_id);
+CREATE INDEX idx_transactions_user_id    ON public.transactions(user_id);
+CREATE INDEX idx_transactions_date       ON public.transactions(date DESC);
+CREATE INDEX idx_categories_user_id      ON public.categories(user_id);
+CREATE INDEX idx_transactions_category_id ON public.transactions (category_id);
+CREATE INDEX idx_transactions_user_date   ON public.transactions (user_id, date DESC);
 
 -- ============================================================
 -- SEED: 12 default system categories (user_id = NULL)
@@ -98,6 +102,8 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.handle_new_user() FROM PUBLIC;
 
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users

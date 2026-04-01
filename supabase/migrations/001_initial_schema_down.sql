@@ -1,11 +1,13 @@
 -- Rollback: 001_initial_schema
 -- Reverses all objects created in 001_initial_schema.sql
 
--- Drop trigger and function first (depends on auth.users)
+-- Drop trigger and function first (depends on auth.users).
+-- REVOKE from the migration is implicitly undone when the function is dropped.
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();
 
--- Drop tables in dependency order (transactions → categories → profiles)
+-- Drop tables in dependency order (transactions → categories → profiles).
+-- Indexes (idx_transactions_*, idx_categories_*) and REPLICA IDENTITY are dropped automatically with the table.
 DROP TABLE IF EXISTS public.transactions;
 DROP TABLE IF EXISTS public.categories;
 DROP TABLE IF EXISTS public.profiles;
