@@ -31,7 +31,25 @@ export async function middleware(request: NextRequest) {
 
   // Refresh the session — this keeps the user logged in and rotates tokens.
   // Do not remove this call; without it the server-side auth state goes stale.
-  await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { pathname } = request.nextUrl
+
+  // Unauthenticated users must not access protected routes.
+  if (pathname.startsWith('/dashboard') && !user) {
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = '/login'
+    return NextResponse.redirect(loginUrl)
+  }
+
+  // Authenticated users should not linger on auth pages.
+  if ((pathname === '/login' || pathname === '/register') && user) {
+    const dashboardUrl = request.nextUrl.clone()
+    dashboardUrl.pathname = '/dashboard'
+    return NextResponse.redirect(dashboardUrl)
+  }
 
   return supabaseResponse
 }
