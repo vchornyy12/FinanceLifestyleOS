@@ -29,9 +29,11 @@ export function useTransactions(
 
   useEffect(() => {
     const supabase = createClient()
-
+    // Use a unique channel name per hook instance to avoid shared-channel issues
+    // when multiple components mount useTransactions simultaneously.
+    const channelName = `transactions-changes-${crypto.randomUUID()}`
     const channel = supabase
-      .channel('transactions-changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'transactions' },

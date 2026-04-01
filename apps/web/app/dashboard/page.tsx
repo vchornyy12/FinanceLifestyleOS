@@ -28,7 +28,7 @@ export default async function DashboardPage() {
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-          Welcome back, {user.email}
+          Welcome back, {user.email ?? 'there'}
         </h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           Here&apos;s an overview of your finances.

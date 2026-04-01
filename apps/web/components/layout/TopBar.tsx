@@ -5,7 +5,7 @@ interface TopBarProps {
   user: User
 }
 
-export default function TopBar({ user }: TopBarProps) {
+export default async function TopBar({ user }: TopBarProps) {
   return (
     <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-6 dark:border-zinc-800 dark:bg-zinc-950">
       {/* Left: app name / breadcrumb area */}
@@ -16,7 +16,7 @@ export default function TopBar({ user }: TopBarProps) {
       {/* Right: user info + logout */}
       <div className="flex items-center gap-4">
         <span className="text-sm text-zinc-700 dark:text-zinc-300">
-          {user.email}
+          {user.email ?? 'your account'}
         </span>
 
         <form action={logoutUser}>

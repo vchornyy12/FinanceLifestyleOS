@@ -101,8 +101,8 @@ export async function updateTransaction(
   formData: FormData,
 ): Promise<TransactionActionState> {
   const id = formData.get('id') as string | null
-  if (!id) {
-    return { error: 'Transaction ID is required.' }
+  if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return { error: 'Invalid transaction ID.' }
   }
 
   const raw = {
@@ -119,6 +119,11 @@ export async function updateTransaction(
   }
 
   const supabase = await createClient()
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    return { error: 'Not authenticated.' }
+  }
 
   const { merchant, amount, category_id, date, note } = parsed.data
 
@@ -154,11 +159,16 @@ export async function deleteTransaction(
   formData: FormData,
 ): Promise<TransactionActionState> {
   const id = formData.get('id') as string | null
-  if (!id) {
-    return { error: 'Transaction ID is required.' }
+  if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return { error: 'Invalid transaction ID.' }
   }
 
   const supabase = await createClient()
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    return { error: 'Not authenticated.' }
+  }
 
   const { error } = await supabase.from('transactions').delete().eq('id', id)
 
