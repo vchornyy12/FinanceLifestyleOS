@@ -12,9 +12,11 @@ type EnrollResult =
 
 function generateBackupCodes(): string[] {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  return Array.from({ length: 8 }, () =>
-    Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join(''),
-  )
+  return Array.from({ length: 8 }, () => {
+    const bytes = new Uint8Array(8)
+    crypto.getRandomValues(bytes)
+    return Array.from(bytes, (b) => chars[b % chars.length]).join('')
+  })
 }
 
 function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: string }) {
@@ -165,6 +167,9 @@ export default function TwoFactorSetup() {
   }
 
   // step === 'done'
+  // NOTE: In production the server action calls redirect('/dashboard') on success, so this
+  // branch is effectively dead code — the redirect fires before React can re-render here.
+  // Persisting backup codes server-side is out of T6 scope; this UI is a fallback only.
   return (
     <div className="flex flex-col gap-6">
       <div className="rounded-lg bg-green-50 px-4 py-3 dark:bg-green-950">

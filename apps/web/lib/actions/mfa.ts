@@ -20,6 +20,11 @@ export async function verifyMFAChallenge(prevState: unknown, formData: FormData)
   const factorId = formData.get('factorId') as string
   const supabase = await createClient()
 
+  // Assert ownership — reject arbitrary factorId values
+  const { data: factorsData } = await supabase.auth.mfa.listFactors()
+  const ownsFactor = factorsData?.totp?.some((f) => f.id === factorId) ?? false
+  if (!ownsFactor) return { error: 'Invalid factor.' }
+
   const { data: challengeData, error: challengeError } =
     await supabase.auth.mfa.challenge({ factorId })
   if (challengeError) return { error: challengeError.message }
@@ -36,6 +41,12 @@ export async function verifyMFAChallenge(prevState: unknown, formData: FormData)
 
 export async function unenrollMFA(factorId: string) {
   const supabase = await createClient()
+
+  // Assert ownership — reject arbitrary factorId values
+  const { data: factorsData } = await supabase.auth.mfa.listFactors()
+  const ownsFactor = factorsData?.totp?.some((f) => f.id === factorId) ?? false
+  if (!ownsFactor) return { error: 'Invalid factor.' }
+
   const { error } = await supabase.auth.mfa.unenroll({ factorId })
   if (error) return { error: error.message }
   revalidatePath('/dashboard/settings/security')
