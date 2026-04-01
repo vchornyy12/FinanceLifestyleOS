@@ -93,6 +93,11 @@ export async function loginUser(
     return { error: 'Invalid email or password' }
   }
 
+  const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (aalData?.nextLevel === 'aal2' && aalData.nextLevel !== aalData.currentLevel) {
+    redirect('/verify-2fa')
+  }
+
   redirect('/dashboard')
 }
 
