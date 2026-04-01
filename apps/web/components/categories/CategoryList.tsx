@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useActionState } from 'react'
+import { useState, useEffect, useActionState } from 'react'
 import type { Category } from '@/types/database'
 import { deleteCategory, type CategoryActionState } from '@/lib/actions/categories'
 import CategoryForm from './CategoryForm'
@@ -21,6 +21,11 @@ interface CategoryListProps {
 export default function CategoryList({ systemCategories, userCategories }: CategoryListProps) {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+
+  // Reset inline edit when the list changes (e.g. after delete/create re-render)
+  useEffect(() => {
+    setEditingId(null)
+  }, [userCategories])
 
   return (
     <div className="flex flex-col gap-8">

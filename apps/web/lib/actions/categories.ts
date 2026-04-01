@@ -120,13 +120,19 @@ export async function updateCategory(
 
   const { name, color } = parsed.data
 
-  const { error } = await supabase
+  // Explicit user_id filter as defence-in-depth over RLS.
+  const { data: updated, error } = await supabase
     .from('categories')
     .update({ name, color })
     .eq('id', id)
+    .eq('user_id', user.id)
+    .select('id')
 
   if (error) {
-    return { error: `Failed to update category: ${error.message}` }
+    return { error: 'Failed to update category.' }
+  }
+  if (!updated || updated.length === 0) {
+    return { error: 'Category not found or permission denied.' }
   }
 
   revalidatePath('/dashboard/settings/categories')
@@ -191,15 +197,25 @@ export async function deleteCategory(
     return { requiresReassignment: true, count: txCount }
   }
 
-  // If in use and reassignment target provided, reassign transactions first
+  // If in use and reassignment target provided, verify target ownership then reassign
   if (txCount > 0 && reassignToId) {
+    // Verify reassignToId is a category the user may use (own or system default)
+    const { count: targetCount } = await supabase
+      .from('categories')
+      .select('id', { count: 'exact', head: true })
+      .eq('id', reassignToId)
+    if (!targetCount) {
+      return { error: 'Reassignment target category not found.' }
+    }
+
     const { error: reassignError } = await supabase
       .from('transactions')
       .update({ category_id: reassignToId })
       .eq('category_id', id)
+      .eq('user_id', user.id) // scope to current user's transactions only
 
     if (reassignError) {
-      return { error: `Failed to reassign transactions: ${reassignError.message}` }
+      return { error: 'Failed to reassign transactions.' }
     }
   }
 
@@ -208,6 +224,7 @@ export async function deleteCategory(
     .from('categories')
     .delete()
     .eq('id', id)
+    .eq('user_id', user.id) // explicit ownership filter
 
   if (deleteError) {
     return { error: `Failed to delete category: ${deleteError.message}` }
