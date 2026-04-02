@@ -4,9 +4,9 @@
 - **Product Name**: Finance Lifestyle OS
 - **Version**: 1.0
 - **Date**: 2026-03-31
-- **Author**: **[NEEDS CLARIFICATION: Author name not provided]**
+- **Author**: Volodymyr
 - **Status**: Accepted
-- **Stakeholders**: **[NEEDS CLARIFICATION: Stakeholder names/roles not provided]**
+- **Stakeholders**: **Volodymyr**
 
 ---
 
@@ -569,10 +569,10 @@ All client apps connect to a shared Supabase backend. AI processing (OCR, coachi
 
 | Role | Name | Allocation | Duration |
 |------|------|------------|----------|
-| Product Manager / Founder | **[NEEDS CLARIFICATION]** | 100% | All phases |
-| Full-Stack Developer | **[NEEDS CLARIFICATION]** | 100% | All phases |
-| Mobile Developer | **[NEEDS CLARIFICATION]** | **[NEEDS CLARIFICATION]** | Phase 1+ |
-| UI/UX Designer | **[NEEDS CLARIFICATION]** | **[NEEDS CLARIFICATION]** | Phase 1–2 |
+| Product Manager / Founder | **Volodymyr** | 100% | All phases |
+| Full-Stack Developer | **Volodymyr** | 100% | All phases |
+| Mobile Developer | **Volodymyr** | **Volodymyr** | Phase 1+ |
+| UI/UX Designer | **Volodymyr** | **Volodymyr** | Phase 1–2 |
 
 ### 13.2 Budget
 
