@@ -32,11 +32,19 @@ export function useTransactions(
     // Use a unique channel name per hook instance to avoid shared-channel issues
     // when multiple components mount useTransactions simultaneously.
     const channelName = `transactions-changes-${crypto.randomUUID()}`
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'transactions' },
+
+    let channel: ReturnType<typeof supabase.channel>
+
+    // Get the current user to scope the Realtime filter to their transactions only.
+    // This prevents receiving other users' change events if Realtime RLS is misconfigured.
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      const filter = user ? `user_id=eq.${user.id}` : undefined
+
+      channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'transactions', ...(filter ? { filter } : {}) },
         (payload) => {
           if (payload.eventType === 'INSERT') {
             // Prepend new row; category will be null until next server fetch
@@ -59,11 +67,12 @@ export function useTransactions(
             )
           }
         },
-      )
-      .subscribe()
+        )
+        .subscribe()
+    })
 
     return () => {
-      supabase.removeChannel(channel)
+      if (channel) supabase.removeChannel(channel)
     }
   }, [])
 

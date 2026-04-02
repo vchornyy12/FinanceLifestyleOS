@@ -109,7 +109,7 @@ function TransactionRow({ transaction, confirming, setConfirming }: TransactionR
           <span className="inline-flex items-center gap-1.5">
             <span
               className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
-              style={{ backgroundColor: transaction.category.color }}
+              style={{ backgroundColor: /^#[0-9A-Fa-f]{6}$/.test(transaction.category.color) ? transaction.category.color : 'transparent' }}
               aria-hidden="true"
             />
             <span className="text-zinc-700 dark:text-zinc-300">{transaction.category.name}</span>

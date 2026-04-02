@@ -127,7 +127,7 @@ export async function updateTransaction(
 
   const { merchant, amount, category_id, date, note } = parsed.data
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('transactions')
     .update({
       merchant,
@@ -137,9 +137,14 @@ export async function updateTransaction(
       note: note ?? null,
     })
     .eq('id', id)
+    .eq('user_id', user.id) // explicit ownership filter as defence-in-depth over RLS
+    .select('id')
 
   if (error) {
-    return { error: `Failed to update transaction: ${error.message}` }
+    return { error: 'Failed to update transaction.' }
+  }
+  if (!updated || updated.length === 0) {
+    return { error: 'Transaction not found or permission denied.' }
   }
 
   revalidatePath('/dashboard/transactions')
@@ -170,10 +175,14 @@ export async function deleteTransaction(
     return { error: 'Not authenticated.' }
   }
 
-  const { error } = await supabase.from('transactions').delete().eq('id', id)
+  const { error } = await supabase
+    .from('transactions')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id) // explicit ownership filter as defence-in-depth over RLS
 
   if (error) {
-    return { error: `Failed to delete transaction: ${error.message}` }
+    return { error: 'Failed to delete transaction.' }
   }
 
   revalidatePath('/dashboard/transactions')
