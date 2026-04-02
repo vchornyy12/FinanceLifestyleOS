@@ -32,6 +32,9 @@ pnpm-debug.log*
 # Turbo
 .turbo/
 
+# Git worktrees
+.worktrees/
+
 # Testing
 coverage/
 playwright-report/
