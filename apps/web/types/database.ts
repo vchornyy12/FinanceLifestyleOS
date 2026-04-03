@@ -4,6 +4,7 @@
  * Mirrors the schema defined in:
  *   supabase/migrations/001_initial_schema.sql
  *   supabase/migrations/002_rls_policies.sql
+ *   supabase/migrations/003_receipt_storage.sql
  *
  * Pattern: Database["public"]["Tables"][TableName]["Row" | "Insert" | "Update"]
  */
@@ -39,6 +40,7 @@ export interface TransactionRow {
   date: string
   note: string | null
   source: TransactionSource
+  receipt_url: string | null
   created_at: string
   updated_at: string
 }
@@ -72,6 +74,7 @@ export interface TransactionInsert {
   date: string
   note?: string | null
   source?: TransactionSource
+  receipt_url?: string | null
   created_at?: string
   updated_at?: string
 }
