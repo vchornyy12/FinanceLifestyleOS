@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import {
   View,
   Image,
@@ -9,68 +9,20 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useAuth } from '@/context/AuthContext'
-import { compressImage, uploadReceiptImage, parseReceipt } from '@/lib/receiptUpload'
-import { supabase } from '@/lib/supabase'
-import { ParsedReceipt } from '@/types/receipt'
+import { useReceiptPipeline } from '@/hooks/useReceiptPipeline'
 
 export default function PreviewScreen() {
   const { photoUri } = useLocalSearchParams<{ photoUri: string }>()
   const router = useRouter()
-  const { user } = useAuth()
-  const [processing, setProcessing] = useState(false)
+  const { run, processing } = useReceiptPipeline()
 
   async function handleUsePhoto() {
-    if (!user) {
-      Alert.alert('Not signed in', 'Please sign in to upload receipts.')
-      return
-    }
+    if (processing) return
     if (!photoUri) {
       Alert.alert('No photo', 'No photo URI found.')
       return
     }
-
-    setProcessing(true)
-    try {
-      const { uri: compressedUri } = await compressImage(photoUri)
-      const storagePath = await uploadReceiptImage(compressedUri, user.id)
-
-      const sessionData = await supabase.auth.getSession()
-      const accessToken = sessionData.data.session?.access_token
-      if (!accessToken) {
-        Alert.alert('Session expired', 'Please sign in again.')
-        return
-      }
-
-      const data: ParsedReceipt = await parseReceipt(storagePath, accessToken)
-
-      // Blurry warning: >50% items have confidence 'low'
-      if (data.items.length > 0) {
-        const lowCount = data.items.filter((i) => i.confidence === 'low').length
-        if (lowCount / data.items.length > 0.5) {
-          await new Promise<void>((resolve) => {
-            Alert.alert(
-              'Low Quality Photo',
-              'Receipt may be hard to read — try a clearer photo',
-              [{ text: 'Continue Anyway', onPress: () => resolve() }],
-            )
-          })
-        }
-      }
-
-      router.push({
-        pathname: '/(review)/review',
-        params: {
-          receiptJson: JSON.stringify(data),
-          storagePath,
-        },
-      })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
-      Alert.alert('Upload Failed', message)
-    } finally {
-      setProcessing(false)
-    }
+    await run(photoUri)
   }
 
   function handleRetake() {

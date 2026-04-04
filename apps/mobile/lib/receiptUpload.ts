@@ -2,7 +2,7 @@ import * as ImageManipulator from 'expo-image-manipulator'
 import { supabase } from '@/lib/supabase'
 import { ParsedReceipt } from '@/types/receipt'
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? ''
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL
 
 const TWO_MB = 2 * 1024 * 1024
 
@@ -42,7 +42,7 @@ export async function uploadReceiptImage(uri: string, userId: string): Promise<s
   const response = await fetch(uri)
   const blob = await response.blob()
 
-  const uuid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
+  const uuid = crypto.randomUUID()
   const storagePath = `${userId}/${uuid}.jpg`
 
   const { error } = await supabase.storage
@@ -64,6 +64,7 @@ export async function parseReceipt(
   storagePath: string,
   accessToken: string,
 ): Promise<ParsedReceipt> {
+  if (!API_BASE_URL) throw new Error('EXPO_PUBLIC_API_BASE_URL is not configured')
   const res = await fetch(`${API_BASE_URL}/api/receipts/parse`, {
     method: 'POST',
     headers: {

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef } from 'react'
 import {
   View,
   Text,
@@ -10,17 +10,13 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import * as ImagePicker from 'expo-image-picker'
 import { useRouter } from 'expo-router'
-import { useAuth } from '@/context/AuthContext'
-import { compressImage, uploadReceiptImage, parseReceipt } from '@/lib/receiptUpload'
-import { supabase } from '@/lib/supabase'
-import { ParsedReceipt } from '@/types/receipt'
+import { useReceiptPipeline } from '@/hooks/useReceiptPipeline'
 
 export default function CaptureScreen() {
   const [permission, requestPermission] = useCameraPermissions()
   const cameraRef = useRef<CameraView>(null)
   const router = useRouter()
-  const { user } = useAuth()
-  const [processing, setProcessing] = useState(false)
+  const { run, processing } = useReceiptPipeline()
 
   // --- Permission states ---
   if (!permission) {
@@ -46,67 +42,19 @@ export default function CaptureScreen() {
 
   // --- Gallery pick → direct upload + parse flow ---
   async function handleGalleryPick() {
-    if (!user) return
+    if (processing) return
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: 'images',
       quality: 0.8,
     })
     if (result.canceled || !result.assets[0]) return
 
-    await runUploadAndParse(result.assets[0].uri)
-  }
-
-  // --- Shared upload+parse flow (used by gallery; preview uses it too via separate screen) ---
-  async function runUploadAndParse(rawUri: string) {
-    if (!user) {
-      Alert.alert('Not signed in', 'Please sign in to upload receipts.')
-      return
-    }
-    setProcessing(true)
-    try {
-      const { uri: compressedUri } = await compressImage(rawUri)
-      const storagePath = await uploadReceiptImage(compressedUri, user.id)
-
-      const sessionData = await supabase.auth.getSession()
-      const accessToken = sessionData.data.session?.access_token
-      if (!accessToken) {
-        Alert.alert('Session expired', 'Please sign in again.')
-        return
-      }
-
-      const data: ParsedReceipt = await parseReceipt(storagePath, accessToken)
-
-      // Blurry warning: >50% items have confidence 'low'
-      if (data.items.length > 0) {
-        const lowCount = data.items.filter((i) => i.confidence === 'low').length
-        if (lowCount / data.items.length > 0.5) {
-          await new Promise<void>((resolve) => {
-            Alert.alert(
-              'Low Quality Photo',
-              'Receipt may be hard to read — try a clearer photo',
-              [{ text: 'Continue Anyway', onPress: () => resolve() }],
-            )
-          })
-        }
-      }
-
-      router.push({
-        pathname: '/(review)/review',
-        params: {
-          receiptJson: JSON.stringify(data),
-          storagePath,
-        },
-      })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
-      Alert.alert('Upload Failed', message)
-    } finally {
-      setProcessing(false)
-    }
+    await run(result.assets[0].uri)
   }
 
   // --- Shutter: capture then navigate to preview ---
   async function handleCapture() {
+    if (processing) return
     if (!cameraRef.current) return
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 })
