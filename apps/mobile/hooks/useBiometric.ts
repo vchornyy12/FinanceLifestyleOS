@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import * as LocalAuthentication from 'expo-local-authentication'
 import * as SecureStore from 'expo-secure-store'
 
-const BIOMETRIC_KEY = 'biometric_enabled'
+export const BIOMETRIC_KEY = 'biometric_enabled'
 
 export function useBiometric() {
   const [isAvailable, setIsAvailable] = useState(false)
@@ -45,7 +45,7 @@ export function useBiometric() {
   }
 
   const disable = async () => {
-    await SecureStore.deleteItemAsync(BIOMETRIC_KEY)
+    await SecureStore.setItemAsync(BIOMETRIC_KEY, 'false')
     setIsEnabled(false)
   }
 

@@ -19,8 +19,11 @@ export default function BiometricSetupScreen() {
   }, [])
 
   const handleEnable = async () => {
-    await enable()
-    router.replace('/(tabs)')
+    const success = await enable()
+    if (success) {
+      router.replace('/(tabs)')
+    }
+    // if not success: stay on screen (user can try again or tap Skip)
   }
 
   const handleSkip = () => {

@@ -5,19 +5,24 @@ import { Stack, useRouter, useSegments } from 'expo-router'
 import * as LocalAuthentication from 'expo-local-authentication'
 import * as SecureStore from 'expo-secure-store'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
+import { BIOMETRIC_KEY, useBiometric } from '@/hooks/useBiometric'
 
-const BIOMETRIC_KEY = 'biometric_enabled'
 const BACKGROUND_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
 
 function NavigationGuard({ children }: { children: React.ReactNode }) {
   const { session, loading, signOut } = useAuth()
   const router = useRouter()
   const segments = useSegments()
+  const { authenticate } = useBiometric()
 
   // AppState / biometric lock state
   const appState = useRef<AppStateStatus>(AppState.currentState)
   const backgroundedAt = useRef<number | null>(null)
   const [biometricLocked, setBiometricLocked] = useState(false)
+
+  // Keep a ref to session so the AppState effect doesn't re-subscribe on every session refresh
+  const sessionRef = useRef(session)
+  useEffect(() => { sessionRef.current = session }, [session])
 
   // Handle biometric lock when app comes to foreground after >5 min
   useEffect(() => {
@@ -38,13 +43,10 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
         if (elapsed > BACKGROUND_TIMEOUT_MS) {
           // Check if biometric is enabled and session exists
           const biometricEnabled = await SecureStore.getItemAsync(BIOMETRIC_KEY)
-          if (biometricEnabled === 'true' && session) {
+          if (biometricEnabled === 'true' && sessionRef.current) {
             setBiometricLocked(true)
-            const result = await LocalAuthentication.authenticateAsync({
-              promptMessage: 'Unlock Finance Lifestyle OS',
-              fallbackLabel: 'Use Password',
-            })
-            if (result.success) {
+            const success = await authenticate()
+            if (success) {
               setBiometricLocked(false)
             } else {
               // Biometric failed → sign out and redirect to login
@@ -59,7 +61,7 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
     })
 
     return () => subscription.remove()
-  }, [session, signOut])
+  }, [signOut])
 
   // Navigation guard: redirect based on auth state + biometric setup flow
   useEffect(() => {
@@ -90,7 +92,7 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
       }
       checkBiometricSetup()
     }
-  }, [session, loading, segments])
+  }, [session, loading, segments, router])
 
   if (biometricLocked) {
     // Render nothing while biometric prompt is shown
