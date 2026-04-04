@@ -27,8 +27,10 @@ function isAllowedMimeType(t: string): t is AllowedMimeType {
 function checkRateLimit(userId: string): boolean {
   const now = Date.now()
   for (const [id, entry] of rateLimitMap) {
-    if (now > entry.resetAt) rateLimitMap.delete(id)
-    break // prune at most one stale entry per call, O(1) overhead
+    if (now > entry.resetAt) {
+      rateLimitMap.delete(id)
+      break // prune at most one stale entry per call, O(1) overhead
+    }
   }
   const limit = rateLimitMap.get(userId)
   if (!limit || now > limit.resetAt) {
