@@ -8,11 +8,28 @@ import { ParsedReceiptSchema } from '@/lib/ocr/receiptSchema'
 // Module-level instances — reused across requests within the same Lambda/Edge instance
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { autoRefreshToken: false, persistSession: false } }
+)
+
 // Module-level map — resets on cold start, sufficient for cost control
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
 
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+type AllowedMimeType = typeof ALLOWED_MIME_TYPES[number]
+
+function isAllowedMimeType(t: string): t is AllowedMimeType {
+  return (ALLOWED_MIME_TYPES as readonly string[]).includes(t)
+}
+
 function checkRateLimit(userId: string): boolean {
   const now = Date.now()
+  for (const [id, entry] of rateLimitMap) {
+    if (now > entry.resetAt) rateLimitMap.delete(id)
+    break // prune at most one stale entry per call, O(1) overhead
+  }
   const limit = rateLimitMap.get(userId)
   if (!limit || now > limit.resetAt) {
     rateLimitMap.set(userId, { count: 1, resetAt: now + 3600_000 })
@@ -34,11 +51,6 @@ export async function POST(req: NextRequest) {
     }
     const token = authHeader.slice(7)
 
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
     const {
       data: { user },
       error: userError,
@@ -77,7 +89,8 @@ export async function POST(req: NextRequest) {
     })
     const imageBuffer = await imageRes.arrayBuffer()
     const imageBase64 = Buffer.from(imageBuffer).toString('base64')
-    const mimeType = imageRes.headers.get('content-type') ?? 'image/jpeg'
+    const rawMime = (imageRes.headers.get('content-type') ?? '').split(';')[0].trim()
+    const mimeType: AllowedMimeType = isAllowedMimeType(rawMime) ? rawMime : 'image/jpeg'
 
     // Claude vision call
     const message = await anthropic.messages.create({
