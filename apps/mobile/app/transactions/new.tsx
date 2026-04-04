@@ -25,7 +25,7 @@ export default function NewTransactionScreen() {
       })
 
       if (error) {
-        Alert.alert('Error', error.message)
+        Alert.alert('Error', 'Failed to save transaction. Please try again.')
       } else {
         router.back()
       }

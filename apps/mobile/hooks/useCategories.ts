@@ -15,7 +15,8 @@ export function useCategories() {
       .from('categories')
       .select('id, name')
       .order('name')
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) console.error('useCategories fetch error:', error)
         if (data) setCategories(data)
         setLoading(false)
       })

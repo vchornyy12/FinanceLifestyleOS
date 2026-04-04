@@ -19,13 +19,19 @@ export function useTransactions(userId: string) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!userId) {
+      setLoading(false)
+      return
+    }
+
     // Initial fetch
     supabase
       .from('transactions')
       .select('*')
       .eq('user_id', userId)
       .order('date', { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) console.error('useTransactions fetch error:', error)
         if (data) setTransactions(data as TransactionRow[])
         setLoading(false)
       })
@@ -36,12 +42,23 @@ export function useTransactions(userId: string) {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'transactions', filter: `user_id=eq.${userId}` },
-        (payload) => setTransactions((prev) => [payload.new as TransactionRow, ...prev])
+        (payload) => setTransactions((prev) =>
+          prev.some((t) => t.id === (payload.new as TransactionRow).id)
+            ? prev
+            : [payload.new as TransactionRow, ...prev]
+        )
       )
       .on(
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'transactions', filter: `user_id=eq.${userId}` },
         (payload) => setTransactions((prev) => prev.filter((t) => t.id !== payload.old.id))
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'transactions', filter: `user_id=eq.${userId}` },
+        (payload) => setTransactions((prev) =>
+          prev.map((t) => t.id === (payload.new as TransactionRow).id ? payload.new as TransactionRow : t)
+        )
       )
       .subscribe()
 

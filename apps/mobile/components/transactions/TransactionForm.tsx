@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native'
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useCategories } from '@/hooks/useCategories'
 
 export interface TransactionFormData {
@@ -27,21 +28,22 @@ interface Props {
   saving: boolean
 }
 
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0]
-}
-
 export function TransactionForm({ onSave, saving }: Props) {
   const { categories, loading: categoriesLoading } = useCategories()
   const [amount, setAmount] = useState('')
   const [merchant, setMerchant] = useState('')
   const [categoryId, setCategoryId] = useState<string | null>(null)
-  const [date, setDate] = useState(todayISO())
+  const [date, setDate] = useState(new Date())
+  const [showDatePicker, setShowDatePicker] = useState(false)
   const [note, setNote] = useState('')
   const [categoryModalVisible, setCategoryModalVisible] = useState(false)
-  const [errors, setErrors] = useState<{ amount?: string; merchant?: string; date?: string }>({})
+  const [errors, setErrors] = useState<{ amount?: string; merchant?: string }>({})
 
   const selectedCategory = categories.find((c) => c.id === categoryId)
+
+  function getISODate(d: Date): string {
+    return d.toISOString().split('T')[0]
+  }
 
   function validate(): boolean {
     const newErrors: typeof errors = {}
@@ -52,16 +54,28 @@ export function TransactionForm({ onSave, saving }: Props) {
     if (!merchant.trim()) {
       newErrors.merchant = 'Merchant is required'
     }
-    if (!date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      newErrors.date = 'Date must be in YYYY-MM-DD format'
-    }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   async function handleSave() {
     if (!validate()) return
-    await onSave({ amount, merchant: merchant.trim(), categoryId, date, note: note.trim() })
+    await onSave({
+      amount,
+      merchant: merchant.trim(),
+      categoryId,
+      date: getISODate(date),
+      note: note.trim(),
+    })
+  }
+
+  function handleDateChange(event: DateTimePickerEvent, selectedDate?: Date) {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false)
+    }
+    if (selectedDate) {
+      setDate(selectedDate)
+    }
   }
 
   return (
@@ -112,16 +126,50 @@ export function TransactionForm({ onSave, saving }: Props) {
 
         {/* Date */}
         <Text style={styles.label}>Date *</Text>
-        <TextInput
-          style={[styles.input, errors.date ? styles.inputError : null]}
-          value={date}
-          onChangeText={setDate}
-          placeholder="YYYY-MM-DD"
-          keyboardType="numeric"
-          returnKeyType="done"
-          maxLength={10}
-        />
-        {errors.date ? <Text style={styles.errorText}>{errors.date}</Text> : null}
+        <TouchableOpacity
+          style={styles.input}
+          onPress={() => setShowDatePicker(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.pickerText}>{date.toLocaleDateString('pl-PL')}</Text>
+        </TouchableOpacity>
+
+        {/* Android: inline picker shown as modal automatically */}
+        {showDatePicker && Platform.OS === 'android' && (
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display="default"
+            onChange={handleDateChange}
+          />
+        )}
+
+        {/* iOS: wrap in a Modal with spinner display */}
+        {Platform.OS === 'ios' && (
+          <Modal
+            visible={showDatePicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowDatePicker(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.datePickerModal}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Select Date</Text>
+                  <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                    <Text style={styles.modalClose}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={date}
+                  mode="date"
+                  display="spinner"
+                  onChange={handleDateChange}
+                />
+              </View>
+            </View>
+          </Modal>
+        )}
 
         {/* Note */}
         <Text style={styles.label}>Note (optional)</Text>
@@ -281,6 +329,12 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     maxHeight: '70%',
+    paddingBottom: 34,
+  },
+  datePickerModal: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     paddingBottom: 34,
   },
   modalHeader: {

@@ -17,7 +17,7 @@ function formatDate(dateStr: string): string {
 }
 
 function formatAmount(amount: number): string {
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(amount)
+  return `${amount.toFixed(2)} PLN`
 }
 
 function TransactionItem({ item }: { item: TransactionRow }) {
