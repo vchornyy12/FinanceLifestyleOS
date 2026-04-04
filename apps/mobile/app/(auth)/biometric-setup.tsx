@@ -1,19 +1,22 @@
 import React, { useEffect } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
-import { useRouter } from 'expo-router'
+import { router } from 'expo-router'
+import * as LocalAuthentication from 'expo-local-authentication'
 import { useBiometric } from '@/hooks/useBiometric'
 
 export default function BiometricSetupScreen() {
-  const router = useRouter()
-  const { isAvailable, enable } = useBiometric()
+  const { enable } = useBiometric()
 
   useEffect(() => {
-    // If biometric hardware is not available or no biometrics enrolled, skip setup
-    if (isAvailable === false) {
-      // Wait for the availability check to complete (isAvailable starts as false)
-      // We use a short timeout to allow the hook's useEffect to resolve
+    async function checkAndRedirect() {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync()
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync()
+      if (!hasHardware || !isEnrolled) {
+        router.replace('/(tabs)')
+      }
     }
-  }, [isAvailable])
+    checkAndRedirect()
+  }, [])
 
   const handleEnable = async () => {
     await enable()
@@ -23,10 +26,6 @@ export default function BiometricSetupScreen() {
   const handleSkip = () => {
     router.replace('/(tabs)')
   }
-
-  // While isAvailable is still being determined (false by default before check),
-  // we render the prompt. If hardware is truly unavailable after check, auto-navigate.
-  // This is handled via NavigationGuard checking hardware before routing here.
 
   return (
     <View className="flex-1 bg-white items-center justify-center px-8">
