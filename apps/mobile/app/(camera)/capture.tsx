@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React, { useRef, useEffect } from 'react'
 import {
   View,
   Text,
@@ -9,21 +9,49 @@ import {
 } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import * as ImagePicker from 'expo-image-picker'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useReceiptPipeline } from '@/hooks/useReceiptPipeline'
+
+type CaptureMode = 'camera' | 'gallery' | 'screenshot'
 
 export default function CaptureScreen() {
   const [permission, requestPermission] = useCameraPermissions()
   const cameraRef = useRef<CameraView>(null)
   const router = useRouter()
   const { run, processing } = useReceiptPipeline()
+  const { mode } = useLocalSearchParams<{ mode?: CaptureMode }>()
+  const captureMode: CaptureMode = mode ?? 'camera'
+
+  // Auto-trigger gallery/screenshot picker once permission status resolves
+  useEffect(() => {
+    if (
+      (captureMode === 'gallery' || captureMode === 'screenshot') &&
+      permission !== null
+    ) {
+      const allowsEditing = captureMode !== 'screenshot'
+      ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.8, allowsEditing })
+        .then((result) => {
+          if (result.canceled || !result.assets[0]) {
+            if (router.canGoBack()) router.back()
+            else router.replace('/(tabs)')
+            return
+          }
+          run(result.assets[0].uri)
+        })
+        .catch(() => {
+          if (router.canGoBack()) router.back()
+          else router.replace('/(tabs)')
+        })
+    }
+  }, [permission]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Permission states ---
   if (!permission) {
     return <View style={styles.container} />
   }
 
-  if (!permission.granted) {
+  // Camera permission gate only applies to camera mode
+  if (!permission.granted && captureMode === 'camera') {
     return (
       <View style={styles.permissionContainer}>
         <Text style={styles.permissionTitle}>Camera Access Required</Text>
@@ -33,22 +61,22 @@ export default function CaptureScreen() {
         <TouchableOpacity style={styles.grantButton} onPress={requestPermission}>
           <Text style={styles.grantButtonText}>Grant Permission</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
     )
   }
 
-  // --- Gallery pick → direct upload + parse flow ---
+  // --- Gallery pick from camera mode (Gallery button) ---
   async function handleGalleryPick() {
     if (processing) return
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: 'images',
       quality: 0.8,
+      allowsEditing: true,
     })
     if (result.canceled || !result.assets[0]) return
-
     await run(result.assets[0].uri)
   }
 

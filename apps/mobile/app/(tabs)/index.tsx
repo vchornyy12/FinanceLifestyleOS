@@ -1,19 +1,42 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, ActionSheetIOS, Alert, Platform } from 'react-native'
 import { useRouter } from 'expo-router'
+
+const ACTION_OPTIONS = ['Take Photo', 'Upload from Gallery', 'Upload Receipt Screenshot', 'Cancel']
+const CANCEL_INDEX = 3
 
 export default function HomeScreen() {
   const router = useRouter()
+
+  const handleAddAction = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ACTION_OPTIONS, cancelButtonIndex: CANCEL_INDEX },
+        (buttonIndex) => {
+          if (buttonIndex === 0) router.push('/(camera)/capture?mode=camera')
+          else if (buttonIndex === 1) router.push('/(camera)/capture?mode=gallery')
+          else if (buttonIndex === 2) router.push('/(camera)/capture?mode=screenshot')
+        }
+      )
+    } else {
+      Alert.alert('Add Receipt', 'Choose an option', [
+        { text: ACTION_OPTIONS[0], onPress: () => router.push('/(camera)/capture?mode=camera') },
+        { text: ACTION_OPTIONS[1], onPress: () => router.push('/(camera)/capture?mode=gallery') },
+        { text: ACTION_OPTIONS[2], onPress: () => router.push('/(camera)/capture?mode=screenshot') },
+        { text: ACTION_OPTIONS[3], style: 'cancel' },
+      ])
+    }
+  }
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Finance Lifestyle OS</Text>
       <Text style={styles.subtitle}>Home</Text>
 
-      {/* Camera FAB */}
+      {/* Receipt FAB */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => router.push('/(camera)/capture')}
-        accessibilityLabel="Capture receipt"
+        onPress={handleAddAction}
+        accessibilityLabel="Add receipt"
         accessibilityRole="button"
       >
         <Text style={styles.fabText}>+</Text>
