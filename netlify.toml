@@ -9,7 +9,5 @@
   PNPM_VERSION  = "10"
   NEXT_TELEMETRY_DISABLED = "1"
 
-# Essential Next.js plugin — handles SSR/ISR/Image Optimization on Netlify.
-# Netlify auto-installs this; no manual package install needed.
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
+# Next.js plugin is managed by Netlify automatically (do not add it here —
+# specifying it pins an old version; Netlify installs the latest from their UI).

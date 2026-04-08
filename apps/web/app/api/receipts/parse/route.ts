@@ -5,14 +5,27 @@ import { z } from 'zod'
 import { RECEIPT_SYSTEM_PROMPT, buildReceiptUserMessage } from '@/lib/ocr/parseReceiptPrompt'
 import { ParsedReceiptSchema } from '@/lib/ocr/receiptSchema'
 
-// Module-level instances — reused across requests within the same Lambda/Edge instance
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+// Lazy singletons — initialized on first request, not at module evaluation time.
+// Module-level createClient() calls throw during `next build` if env vars are
+// missing, so we defer construction to the first POST handler invocation.
+let _anthropic: Anthropic | null = null
+let _supabaseAdmin: ReturnType<typeof createClient> | null = null
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-)
+function getAnthropic(): Anthropic {
+  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  return _anthropic
+}
+
+function getSupabaseAdmin(): ReturnType<typeof createClient> {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+  }
+  return _supabaseAdmin
+}
 
 // Module-level map — resets on cold start, sufficient for cost control
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -60,7 +73,7 @@ export async function POST(req: NextRequest) {
     const {
       data: { user },
       error: userError,
-    } = await supabaseAdmin.auth.getUser(token)
+    } = await getSupabaseAdmin().auth.getUser(token)
     if (userError || !user) {
       console.error('[ocr] auth_failure: invalid token', userError?.message)
       return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 })
@@ -87,7 +100,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Image fetch — generate signed URL then fetch with timeout
-    const { data: signedUrlData, error: urlError } = await supabaseAdmin.storage
+    const { data: signedUrlData, error: urlError } = await getSupabaseAdmin().storage
       .from('receipts')
       .createSignedUrl(storagePath, 120)
     if (urlError || !signedUrlData?.signedUrl) {
@@ -110,7 +123,7 @@ export async function POST(req: NextRequest) {
     // is rejected at the schema layer.
     let message
     try {
-      message = await anthropic.messages.create({
+      message = await getAnthropic().messages.create({
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 2048,
         system: RECEIPT_SYSTEM_PROMPT,
