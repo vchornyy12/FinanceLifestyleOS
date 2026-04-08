@@ -1,6 +1,6 @@
 [build]
-  # base = apps/web so Netlify auto-detects Next.js (finds next.config.ts here).
-  # Build command navigates up to repo root first to install all workspace deps,
+  # base = apps/web so Netlify framework detection finds next.config.ts here.
+  # Build command navigates up to repo root to install all workspace deps,
   # then runs the web build. publish is relative to base.
   base    = "apps/web"
   command = "cd ../.. && pnpm install --frozen-lockfile && pnpm build --filter=web"
@@ -10,3 +10,8 @@
   NODE_VERSION            = "20"
   PNPM_VERSION            = "10"
   NEXT_TELEMETRY_DISABLED = "1"
+
+# Locally installed v5 takes precedence over Netlify's auto-managed version.
+# Required for monorepo: auto-detection alone doesn't reliably activate OpenNext.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
