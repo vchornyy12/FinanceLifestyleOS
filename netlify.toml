@@ -1,13 +1,12 @@
 [build]
-  # Install from monorepo root so pnpm workspace deps resolve correctly,
-  # then build only the web app via Turbo filter.
-  command = "pnpm install --frozen-lockfile && pnpm build --filter=web"
-  publish = "apps/web/.next"
+  # base = apps/web so Netlify auto-detects Next.js (finds next.config.ts here).
+  # Build command navigates up to repo root first to install all workspace deps,
+  # then runs the web build. publish is relative to base.
+  base    = "apps/web"
+  command = "cd ../.. && pnpm install --frozen-lockfile && pnpm build --filter=web"
+  publish = ".next"
 
 [build.environment]
-  NODE_VERSION  = "20"
-  PNPM_VERSION  = "10"
+  NODE_VERSION            = "20"
+  PNPM_VERSION            = "10"
   NEXT_TELEMETRY_DISABLED = "1"
-
-# Next.js plugin is managed by Netlify automatically (do not add it here —
-# specifying it pins an old version; Netlify installs the latest from their UI).
