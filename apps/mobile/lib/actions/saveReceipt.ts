@@ -10,15 +10,19 @@ export async function saveReceipt(
   items: ReviewItem[],
   receipt: ParsedReceipt,
   storagePath: string,
-  userId: string,
   categories: Category[],
 ): Promise<void> {
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) {
+    throw new Error('Not authenticated')
+  }
+
   const categoryMap = new Map<string, string>(
     categories.map((c) => [c.name.toLowerCase(), c.id])
   )
 
   const transactions = items.map((item) => ({
-    user_id: userId,
+    user_id: user.id,
     category_id: item.category ? (categoryMap.get(item.category.toLowerCase()) ?? null) : null,
     amount: item.total_price.toFixed(2),
     merchant: receipt.store,

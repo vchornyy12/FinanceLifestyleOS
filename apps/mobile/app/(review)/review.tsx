@@ -98,7 +98,7 @@ export default function ReviewScreen() {
     }
     setSaving(true)
     try {
-      await saveReceipt(items, parsed, resolvedPath, user.id, categories)
+      await saveReceipt(items, parsed, resolvedPath, categories)
       Alert.alert('Saved', 'Receipt saved!', [
         { text: 'OK', onPress: () => router.replace('/(tabs)') },
       ])
