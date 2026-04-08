@@ -7,24 +7,13 @@ import AddItemModal from '@/components/receipt/AddItemModal'
 import { saveReceipt } from '@/lib/actions/saveReceipt'
 import { useAuth } from '@/context/AuthContext'
 import { useCategories } from '@/hooks/useCategories'
-
-function isValidParsedReceipt(v: unknown): v is ParsedReceipt {
-  if (!v || typeof v !== 'object') return false
-  const r = v as Record<string, unknown>
-  return (
-    typeof r.store === 'string' &&
-    typeof r.date === 'string' &&
-    typeof r.total === 'number' &&
-    Array.isArray(r.items)
-  )
-}
+import { parseOcrReceipt } from '@/lib/ocr/receiptSchema'
 
 function parseReceiptParam(raw: string | string[] | undefined): ParsedReceipt | null {
   const str = Array.isArray(raw) ? raw[0] : raw
   if (!str) return null
   try {
-    const parsed: unknown = JSON.parse(str)
-    return isValidParsedReceipt(parsed) ? parsed : null
+    return parseOcrReceipt(JSON.parse(str))
   } catch {
     return null
   }
