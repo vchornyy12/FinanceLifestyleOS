@@ -9,7 +9,16 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "cache": {
+        "key": "preview-v1",
+        "cacheDefaultPaths": true,
+        "customPaths": [
+          "apps/mobile/node_modules/.cache",
+          "~/.gradle/caches",
+          "~/.gradle/wrapper"
+        ]
+      }
     },
     "production": {
       "autoIncrement": true
