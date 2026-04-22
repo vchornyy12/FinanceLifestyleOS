@@ -1,22 +1,24 @@
 import { createClient } from '@/lib/supabase/server'
-import type { Transaction } from '@/types/database'
+import type { Transaction, TransactionType } from '@/types/database'
 
 export type TransactionWithCategory = Transaction & {
   category: { id: string; name: string; color: string } | null
 }
 
 /**
- * Fetch all transactions for the currently authenticated user,
- * joined with their category name and color, ordered by date descending
- * then created_at descending (newest first within the same date).
+ * Fetch transactions for the currently authenticated user, joined with their
+ * category name and color, ordered by date desc then created_at desc.
  *
- * RLS ensures only the current user's rows are returned — no manual
- * user_id filter is needed.
+ * @param typeFilter Optional — restrict to a single transaction type.
+ *
+ * RLS ensures only the current user's rows are returned.
  */
-export async function getTransactions(): Promise<TransactionWithCategory[]> {
+export async function getTransactions(
+  typeFilter?: TransactionType,
+): Promise<TransactionWithCategory[]> {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('transactions')
     .select(`
       *,
@@ -24,6 +26,12 @@ export async function getTransactions(): Promise<TransactionWithCategory[]> {
     `)
     .order('date', { ascending: false })
     .order('created_at', { ascending: false })
+
+  if (typeFilter) {
+    query = query.eq('type', typeFilter)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     throw new Error(`Failed to fetch transactions: ${error.message}`)

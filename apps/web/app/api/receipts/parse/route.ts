@@ -16,13 +16,22 @@ function getAnthropic(): Anthropic {
   return _anthropic
 }
 
+class ServerMisconfiguredError extends Error {
+  constructor(missing: string) {
+    super(`Missing required env var: ${missing}`)
+    this.name = 'ServerMisconfiguredError'
+  }
+}
+
 function getSupabaseAdmin(): ReturnType<typeof createClient> {
   if (!_supabaseAdmin) {
-    _supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url) throw new ServerMisconfiguredError('NEXT_PUBLIC_SUPABASE_URL')
+    if (!key) throw new ServerMisconfiguredError('SUPABASE_SERVICE_ROLE_KEY')
+    _supabaseAdmin = createClient(url, key, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
   }
   return _supabaseAdmin
 }
@@ -165,6 +174,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(receipt)
   } catch (err) {
+    if (err instanceof ServerMisconfiguredError) {
+      console.error('[ocr] server_misconfigured:', err.message)
+      return NextResponse.json({ error: 'SERVER_MISCONFIGURED' }, { status: 503 })
+    }
     if (err instanceof Error && err.name === 'TimeoutError') {
       console.error('[ocr] timeout: image fetch exceeded 25s')
       return NextResponse.json({ error: 'TIMEOUT' }, { status: 504 })

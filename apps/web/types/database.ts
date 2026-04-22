@@ -5,11 +5,13 @@
  *   supabase/migrations/001_initial_schema.sql
  *   supabase/migrations/002_rls_policies.sql
  *   supabase/migrations/003_receipt_storage.sql
+ *   supabase/migrations/004_transaction_type.sql
  *
  * Pattern: Database["public"]["Tables"][TableName]["Row" | "Insert" | "Update"]
  */
 
 export type TransactionSource = 'manual' | 'bank_sync' | 'ocr'
+export type TransactionType = 'expense' | 'income' | 'transfer'
 
 // ---------------------------------------------------------------------------
 // Table row shapes
@@ -40,6 +42,9 @@ export interface TransactionRow {
   date: string
   note: string | null
   source: TransactionSource
+  type: TransactionType
+  from_account: string | null
+  to_account: string | null
   receipt_url: string | null
   created_at: string
   updated_at: string
@@ -74,6 +79,9 @@ export interface TransactionInsert {
   date: string
   note?: string | null
   source?: TransactionSource
+  type: TransactionType
+  from_account?: string | null
+  to_account?: string | null
   receipt_url?: string | null
   created_at?: string
   updated_at?: string
@@ -114,6 +122,7 @@ export interface Database {
     }
     Enums: {
       transaction_source: TransactionSource
+      transaction_type: TransactionType
     }
   }
 }

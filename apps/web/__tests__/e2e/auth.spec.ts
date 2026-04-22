@@ -18,8 +18,11 @@ test.describe('Authentication', () => {
     await page.getByLabel('Email').fill('nonexistent@example.com')
     await page.getByLabel('Password').fill('wrongpassword123')
     await page.getByRole('button', { name: /sign in/i }).click()
-    await expect(page.getByRole('alert')).toBeVisible()
-    await expect(page.getByRole('alert')).toContainText(/invalid/i)
+    // Next.js 16 renders an empty announcer div with role="alert", so scope
+    // the assertion to the form's own error element.
+    const formAlert = page.getByRole('alert').filter({ hasText: /./ })
+    await expect(formAlert).toBeVisible()
+    await expect(formAlert).toContainText(/invalid/i)
   })
 
   test('register page renders with all required fields', async ({ page }) => {

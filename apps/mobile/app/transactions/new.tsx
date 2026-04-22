@@ -16,20 +16,25 @@ export default function NewTransactionScreen() {
     try {
       const { error } = await supabase.from('transactions').insert({
         user_id: user.id,
+        type: data.type,
         amount: parseFloat(data.amount),
         merchant: data.merchant,
         category_id: data.categoryId,
         date: data.date,
         note: data.note || null,
-        transaction_source: 'manual',
+        source: 'manual',
+        from_account: data.fromAccount,
+        to_account: data.toAccount,
       })
 
       if (error) {
-        Alert.alert('Error', 'Failed to save transaction. Please try again.')
+        console.error('Insert transaction error:', error)
+        Alert.alert('Error', error.message ?? 'Failed to save transaction.')
       } else {
         router.back()
       }
     } catch (err) {
+      console.error('Insert transaction exception:', err)
       Alert.alert('Error', 'Failed to save transaction. Please try again.')
     } finally {
       setSaving(false)

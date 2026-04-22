@@ -14,13 +14,17 @@ import {
 } from 'react-native'
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useCategories } from '@/hooks/useCategories'
+import type { TransactionType } from '@/types/database'
 
 export interface TransactionFormData {
+  type: TransactionType
   amount: string
   merchant: string
   categoryId: string | null
   date: string
   note: string
+  fromAccount: string | null
+  toAccount: string | null
 }
 
 interface Props {
@@ -28,18 +32,35 @@ interface Props {
   saving: boolean
 }
 
+const TYPE_OPTIONS: Array<{ value: TransactionType; label: string }> = [
+  { value: 'expense', label: 'Expense' },
+  { value: 'income', label: 'Income' },
+  { value: 'transfer', label: 'Transfer' },
+]
+
 export function TransactionForm({ onSave, saving }: Props) {
   const { categories, loading: categoriesLoading } = useCategories()
+  const [type, setType] = useState<TransactionType>('expense')
   const [amount, setAmount] = useState('')
   const [merchant, setMerchant] = useState('')
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [date, setDate] = useState(new Date())
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [note, setNote] = useState('')
+  const [fromAccount, setFromAccount] = useState('')
+  const [toAccount, setToAccount] = useState('')
   const [categoryModalVisible, setCategoryModalVisible] = useState(false)
-  const [errors, setErrors] = useState<{ amount?: string; merchant?: string }>({})
+  const [errors, setErrors] = useState<{
+    amount?: string
+    merchant?: string
+    fromAccount?: string
+    toAccount?: string
+  }>({})
 
   const selectedCategory = categories.find((c) => c.id === categoryId)
+  const isTransfer = type === 'transfer'
+  const payeeLabel = type === 'income' ? 'Source' : 'Merchant'
+  const payeePlaceholder = type === 'income' ? 'e.g. Employer' : 'e.g. Biedronka'
 
   function getISODate(d: Date): string {
     return d.toISOString().split('T')[0]
@@ -51,8 +72,18 @@ export function TransactionForm({ onSave, saving }: Props) {
     if (!amount || isNaN(parsed) || parsed <= 0) {
       newErrors.amount = 'Amount must be a positive number'
     }
-    if (!merchant.trim()) {
-      newErrors.merchant = 'Merchant is required'
+    if (isTransfer) {
+      if (!fromAccount.trim()) newErrors.fromAccount = 'From account is required'
+      if (!toAccount.trim()) newErrors.toAccount = 'To account is required'
+      if (
+        fromAccount.trim() &&
+        toAccount.trim() &&
+        fromAccount.trim().toLowerCase() === toAccount.trim().toLowerCase()
+      ) {
+        newErrors.toAccount = 'From and to accounts must differ'
+      }
+    } else if (!merchant.trim()) {
+      newErrors.merchant = `${payeeLabel} is required`
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -61,11 +92,14 @@ export function TransactionForm({ onSave, saving }: Props) {
   async function handleSave() {
     if (!validate()) return
     await onSave({
+      type,
       amount,
-      merchant: merchant.trim(),
-      categoryId,
+      merchant: isTransfer ? 'Transfer' : merchant.trim(),
+      categoryId: isTransfer ? null : categoryId,
       date: getISODate(date),
       note: note.trim(),
+      fromAccount: isTransfer ? fromAccount.trim() : null,
+      toAccount: isTransfer ? toAccount.trim() : null,
     })
   }
 
@@ -83,7 +117,36 @@ export function TransactionForm({ onSave, saving }: Props) {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView style={styles.flex} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Type segmented control */}
+        <Text style={styles.label}>Type</Text>
+        <View style={styles.segment}>
+          {TYPE_OPTIONS.map((opt) => {
+            const active = type === opt.value
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                style={[styles.segmentItem, active ? styles.segmentItemActive : null]}
+                onPress={() => setType(opt.value)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.segmentItemText,
+                    active ? styles.segmentItemTextActive : null,
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+
         {/* Amount */}
         <Text style={styles.label}>Amount *</Text>
         <TextInput
@@ -96,33 +159,69 @@ export function TransactionForm({ onSave, saving }: Props) {
         />
         {errors.amount ? <Text style={styles.errorText}>{errors.amount}</Text> : null}
 
-        {/* Merchant */}
-        <Text style={styles.label}>Merchant *</Text>
-        <TextInput
-          style={[styles.input, errors.merchant ? styles.inputError : null]}
-          value={merchant}
-          onChangeText={setMerchant}
-          placeholder="e.g. Tesco"
-          autoCapitalize="words"
-          returnKeyType="done"
-        />
-        {errors.merchant ? <Text style={styles.errorText}>{errors.merchant}</Text> : null}
+        {/* Merchant or Transfer endpoints */}
+        {isTransfer ? (
+          <>
+            <Text style={styles.label}>From account *</Text>
+            <TextInput
+              style={[styles.input, errors.fromAccount ? styles.inputError : null]}
+              value={fromAccount}
+              onChangeText={setFromAccount}
+              placeholder="e.g. Checking"
+              autoCapitalize="words"
+              returnKeyType="done"
+            />
+            {errors.fromAccount ? (
+              <Text style={styles.errorText}>{errors.fromAccount}</Text>
+            ) : null}
 
-        {/* Category */}
-        <Text style={styles.label}>Category</Text>
-        <TouchableOpacity
-          style={styles.input}
-          onPress={() => setCategoryModalVisible(true)}
-          activeOpacity={0.7}
-        >
-          {categoriesLoading ? (
-            <ActivityIndicator size="small" color="#3b82f6" />
-          ) : (
-            <Text style={selectedCategory ? styles.pickerText : styles.pickerPlaceholder}>
-              {selectedCategory ? selectedCategory.name : 'Select a category'}
-            </Text>
-          )}
-        </TouchableOpacity>
+            <Text style={styles.label}>To account *</Text>
+            <TextInput
+              style={[styles.input, errors.toAccount ? styles.inputError : null]}
+              value={toAccount}
+              onChangeText={setToAccount}
+              placeholder="e.g. Savings"
+              autoCapitalize="words"
+              returnKeyType="done"
+            />
+            {errors.toAccount ? (
+              <Text style={styles.errorText}>{errors.toAccount}</Text>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <Text style={styles.label}>{payeeLabel} *</Text>
+            <TextInput
+              style={[styles.input, errors.merchant ? styles.inputError : null]}
+              value={merchant}
+              onChangeText={setMerchant}
+              placeholder={payeePlaceholder}
+              autoCapitalize="words"
+              returnKeyType="done"
+            />
+            {errors.merchant ? (
+              <Text style={styles.errorText}>{errors.merchant}</Text>
+            ) : null}
+
+            {/* Category (hidden for transfers) */}
+            <Text style={styles.label}>Category</Text>
+            <TouchableOpacity
+              style={styles.input}
+              onPress={() => setCategoryModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              {categoriesLoading ? (
+                <ActivityIndicator size="small" color="#3b82f6" />
+              ) : (
+                <Text
+                  style={selectedCategory ? styles.pickerText : styles.pickerPlaceholder}
+                >
+                  {selectedCategory ? selectedCategory.name : 'Select a category'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </>
+        )}
 
         {/* Date */}
         <Text style={styles.label}>Date *</Text>
@@ -134,7 +233,6 @@ export function TransactionForm({ onSave, saving }: Props) {
           <Text style={styles.pickerText}>{date.toLocaleDateString('pl-PL')}</Text>
         </TouchableOpacity>
 
-        {/* Android: inline picker shown as modal automatically */}
         {showDatePicker && Platform.OS === 'android' && (
           <DateTimePicker
             value={date}
@@ -144,7 +242,6 @@ export function TransactionForm({ onSave, saving }: Props) {
           />
         )}
 
-        {/* iOS: wrap in a Modal with spinner display */}
         {Platform.OS === 'ios' && (
           <Modal
             visible={showDatePicker}
@@ -177,14 +274,13 @@ export function TransactionForm({ onSave, saving }: Props) {
           style={[styles.input, styles.noteInput]}
           value={note}
           onChangeText={setNote}
-          placeholder="Add a note..."
+          placeholder={isTransfer ? 'e.g. Topped up savings' : 'Add a note...'}
           multiline
           numberOfLines={3}
           returnKeyType="done"
           blurOnSubmit
         />
 
-        {/* Save Button */}
         <TouchableOpacity
           style={[styles.saveButton, saving ? styles.saveButtonDisabled : null]}
           onPress={handleSave}
@@ -214,15 +310,22 @@ export function TransactionForm({ onSave, saving }: Props) {
                 </TouchableOpacity>
               </View>
 
-              {/* None option */}
               <TouchableOpacity
-                style={[styles.categoryItem, categoryId === null ? styles.categoryItemSelected : null]}
+                style={[
+                  styles.categoryItem,
+                  categoryId === null ? styles.categoryItemSelected : null,
+                ]}
                 onPress={() => {
                   setCategoryId(null)
                   setCategoryModalVisible(false)
                 }}
               >
-                <Text style={[styles.categoryItemText, categoryId === null ? styles.categoryItemTextSelected : null]}>
+                <Text
+                  style={[
+                    styles.categoryItemText,
+                    categoryId === null ? styles.categoryItemTextSelected : null,
+                  ]}
+                >
                   None
                 </Text>
               </TouchableOpacity>
@@ -232,20 +335,26 @@ export function TransactionForm({ onSave, saving }: Props) {
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    style={[styles.categoryItem, categoryId === item.id ? styles.categoryItemSelected : null]}
+                    style={[
+                      styles.categoryItem,
+                      categoryId === item.id ? styles.categoryItemSelected : null,
+                    ]}
                     onPress={() => {
                       setCategoryId(item.id)
                       setCategoryModalVisible(false)
                     }}
                   >
-                    <Text style={[styles.categoryItemText, categoryId === item.id ? styles.categoryItemTextSelected : null]}>
+                    <Text
+                      style={[
+                        styles.categoryItemText,
+                        categoryId === item.id ? styles.categoryItemTextSelected : null,
+                      ]}
+                    >
                       {item.name}
                     </Text>
                   </TouchableOpacity>
                 )}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>No categories found</Text>
-                }
+                ListEmptyComponent={<Text style={styles.emptyText}>No categories found</Text>}
               />
             </View>
           </View>
@@ -318,7 +427,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  // Modal
+  segment: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    padding: 4,
+    gap: 4,
+  },
+  segmentItem: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  segmentItemActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  segmentItemText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6b7280',
+  },
+  segmentItemTextActive: {
+    color: '#111827',
+    fontWeight: '600',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',

@@ -6,6 +6,12 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// The route guards against missing env vars and returns 503; set placeholders
+// so we exercise the real code paths rather than the misconfigured short-circuit.
+process.env.NEXT_PUBLIC_SUPABASE_URL ??= 'http://localhost:54321'
+process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'test-service-role-key'
+process.env.ANTHROPIC_API_KEY ??= 'test-anthropic-key'
+
 // ---------------------------------------------------------------------------
 // Mocks — must be declared before importing the module under test
 // ---------------------------------------------------------------------------

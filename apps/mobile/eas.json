@@ -12,8 +12,7 @@
       "distribution": "internal",
       "cache": {
         "key": "preview-v1",
-        "cacheDefaultPaths": true,
-        "customPaths": [
+        "paths": [
           "apps/mobile/node_modules/.cache",
           "~/.gradle/caches",
           "~/.gradle/wrapper"

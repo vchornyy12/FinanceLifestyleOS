@@ -1,8 +1,8 @@
 'use client'
 
-import { useActionState, useEffect } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Category } from '@/types/database'
+import type { Category, TransactionType } from '@/types/database'
 import type { TransactionWithCategory } from '@/lib/supabase/queries/transactions'
 import {
   createTransaction,
@@ -20,6 +20,12 @@ interface TransactionFormProps {
   transaction?: TransactionWithCategory
 }
 
+const TYPE_OPTIONS: Array<{ value: TransactionType; label: string }> = [
+  { value: 'expense', label: 'Expense' },
+  { value: 'income', label: 'Income' },
+  { value: 'transfer', label: 'Transfer' },
+]
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -35,30 +41,35 @@ export default function TransactionForm({ categories, transaction }: Transaction
     null,
   )
 
-  // Navigate back to list on success
+  const [type, setType] = useState<TransactionType>(transaction?.type ?? 'expense')
+
   useEffect(() => {
     if (state?.success) {
       router.push('/dashboard/transactions')
     }
   }, [state?.success, router])
 
-  // today in YYYY-MM-DD format for max attribute
   const today = new Date().toISOString().split('T')[0]
 
-  // Pre-fill values for edit mode
   const defaultMerchant = transaction?.merchant ?? ''
   const defaultAmount = transaction ? parseFloat(transaction.amount).toFixed(2) : ''
   const defaultCategoryId = transaction?.category_id ?? ''
   const defaultDate = transaction?.date ?? today
   const defaultNote = transaction?.note ?? ''
+  const defaultFromAccount = transaction?.from_account ?? ''
+  const defaultToAccount = transaction?.to_account ?? ''
+
+  const isTransfer = type === 'transfer'
+  const payeeLabel = type === 'income' ? 'Source' : 'Merchant'
+  const payeePlaceholder = type === 'income' ? 'e.g. Employer' : 'e.g. Biedronka'
 
   return (
     <form
       action={formAction}
       className="flex flex-col gap-5 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
     >
-      {/* Hidden id for edit mode */}
       {isEdit && <input type="hidden" name="id" value={transaction.id} />}
+      <input type="hidden" name="type" value={type} />
 
       {/* Global error */}
       {state?.error && (
@@ -67,30 +78,117 @@ export default function TransactionForm({ categories, transaction }: Transaction
         </p>
       )}
 
-      {/* Merchant */}
+      {/* Type segmented control */}
       <div>
-        <label
-          htmlFor="merchant"
-          className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+        <span className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+          Type
+        </span>
+        <div
+          role="tablist"
+          aria-label="Transaction type"
+          className="inline-flex rounded-lg border border-zinc-300 bg-zinc-50 p-1 dark:border-zinc-700 dark:bg-zinc-800"
         >
-          Merchant <span className="text-red-500">*</span>
-        </label>
-        <input
-          id="merchant"
-          name="merchant"
-          type="text"
-          required
-          defaultValue={defaultMerchant}
-          maxLength={200}
-          placeholder="e.g. Biedronka"
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
-        />
-        {state?.fieldErrors?.merchant?.map((msg) => (
-          <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
-            {msg}
-          </p>
-        ))}
+          {TYPE_OPTIONS.map((opt) => {
+            const active = type === opt.value
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setType(opt.value)}
+                className={
+                  'rounded-md px-3 py-1.5 text-xs font-medium transition-colors ' +
+                  (active
+                    ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-100'
+                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100')
+                }
+              >
+                {opt.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
+
+      {/* Merchant / Source (hidden for transfers) */}
+      {!isTransfer && (
+        <div>
+          <label
+            htmlFor="merchant"
+            className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+          >
+            {payeeLabel} <span className="text-red-500">*</span>
+          </label>
+          <input
+            id="merchant"
+            name="merchant"
+            type="text"
+            required
+            defaultValue={defaultMerchant}
+            maxLength={200}
+            placeholder={payeePlaceholder}
+            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+          />
+          {state?.fieldErrors?.merchant?.map((msg) => (
+            <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
+              {msg}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {/* Transfer endpoints */}
+      {isTransfer && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label
+              htmlFor="from_account"
+              className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+            >
+              From account <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="from_account"
+              name="from_account"
+              type="text"
+              required
+              defaultValue={defaultFromAccount}
+              maxLength={100}
+              placeholder="e.g. Checking"
+              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+            />
+            {state?.fieldErrors?.from_account?.map((msg) => (
+              <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
+                {msg}
+              </p>
+            ))}
+          </div>
+          <div>
+            <label
+              htmlFor="to_account"
+              className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+            >
+              To account <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="to_account"
+              name="to_account"
+              type="text"
+              required
+              defaultValue={defaultToAccount}
+              maxLength={100}
+              placeholder="e.g. Savings"
+              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+            />
+            {state?.fieldErrors?.to_account?.map((msg) => (
+              <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
+                {msg}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Amount */}
       <div>
@@ -118,33 +216,35 @@ export default function TransactionForm({ categories, transaction }: Transaction
         ))}
       </div>
 
-      {/* Category */}
-      <div>
-        <label
-          htmlFor="category_id"
-          className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
-        >
-          Category
-        </label>
-        <select
-          id="category_id"
-          name="category_id"
-          defaultValue={defaultCategoryId}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
-        >
-          <option value="">No category</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
+      {/* Category (not shown for transfers — usually categorised by account movement not taxonomy) */}
+      {!isTransfer && (
+        <div>
+          <label
+            htmlFor="category_id"
+            className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+          >
+            Category
+          </label>
+          <select
+            id="category_id"
+            name="category_id"
+            defaultValue={defaultCategoryId}
+            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+          >
+            <option value="">No category</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+          {state?.fieldErrors?.category_id?.map((msg) => (
+            <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
+              {msg}
+            </p>
           ))}
-        </select>
-        {state?.fieldErrors?.category_id?.map((msg) => (
-          <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
-            {msg}
-          </p>
-        ))}
-      </div>
+        </div>
+      )}
 
       {/* Date */}
       <div>
@@ -184,7 +284,9 @@ export default function TransactionForm({ categories, transaction }: Transaction
           rows={3}
           defaultValue={defaultNote}
           maxLength={500}
-          placeholder="e.g. Weekly groceries run"
+          placeholder={
+            isTransfer ? 'e.g. Topped up savings' : 'e.g. Weekly groceries run'
+          }
           className="w-full resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
         />
         {state?.fieldErrors?.note?.map((msg) => (

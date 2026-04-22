@@ -5,6 +5,7 @@
   base    = "apps/web"
   command = "cd ../.. && pnpm install --frozen-lockfile && pnpm build --filter=web"
   publish = ".next"
+  ignore  = "npx turbo-ignore"
 
 [build.environment]
   NODE_VERSION            = "20"

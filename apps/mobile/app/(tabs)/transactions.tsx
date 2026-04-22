@@ -10,24 +10,70 @@ import {
 import { router, Stack } from 'expo-router'
 import { useAuth } from '@/context/AuthContext'
 import { useTransactions, TransactionRow } from '@/hooks/useTransactions'
+import type { TransactionType } from '@/types/database'
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function formatAmount(amount: number): string {
-  return `${amount.toFixed(2)} PLN`
+function typePresentation(type: TransactionType) {
+  if (type === 'income') {
+    return {
+      symbol: '+',
+      arrow: '↑',
+      label: 'Income',
+      amountColor: '#059669',
+      badgeBg: '#ecfdf5',
+      badgeFg: '#047857',
+    }
+  }
+  if (type === 'transfer') {
+    return {
+      symbol: '',
+      arrow: '↔',
+      label: 'Transfer',
+      amountColor: '#374151',
+      badgeBg: '#f3f4f6',
+      badgeFg: '#374151',
+    }
+  }
+  return {
+    symbol: '−',
+    arrow: '↓',
+    label: 'Expense',
+    amountColor: '#dc2626',
+    badgeBg: '#fef2f2',
+    badgeFg: '#b91c1c',
+  }
 }
 
 function TransactionItem({ item }: { item: TransactionRow }) {
+  const pres = typePresentation(item.type)
+  const description =
+    item.type === 'transfer'
+      ? `${item.from_account ?? '?'} → ${item.to_account ?? '?'}`
+      : item.merchant
+  const formattedAmount = `${pres.symbol}${item.amount.toFixed(2)} PLN`
+
   return (
     <View style={styles.item}>
       <View style={styles.itemLeft}>
-        <Text style={styles.itemMerchant} numberOfLines={1}>{item.merchant}</Text>
+        <View style={styles.itemRow}>
+          <View style={[styles.badge, { backgroundColor: pres.badgeBg }]}>
+            <Text style={[styles.badgeText, { color: pres.badgeFg }]}>
+              {pres.arrow} {pres.label}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.itemMerchant} numberOfLines={1}>
+          {description}
+        </Text>
         <Text style={styles.itemDate}>{formatDate(item.date)}</Text>
       </View>
-      <Text style={styles.itemAmount}>{formatAmount(item.amount)}</Text>
+      <Text style={[styles.itemAmount, { color: pres.amountColor }]}>
+        {formattedAmount}
+      </Text>
     </View>
   )
 }
@@ -46,7 +92,11 @@ export default function TransactionsScreen() {
         options={{
           title: 'Transactions',
           headerRight: () => (
-            <TouchableOpacity onPress={handleAddPress} style={styles.addButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity
+              onPress={handleAddPress}
+              style={styles.addButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
               <Text style={styles.addButtonText}>+</Text>
             </TouchableOpacity>
           ),
@@ -74,7 +124,6 @@ export default function TransactionsScreen() {
             contentContainerStyle={styles.listContent}
             ItemSeparatorComponent={() => <View style={styles.separator} />}
           />
-          {/* FAB */}
           <TouchableOpacity style={styles.fab} onPress={handleAddPress} activeOpacity={0.85}>
             <Text style={styles.fabText}>+</Text>
           </TouchableOpacity>
@@ -121,6 +170,20 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
+  itemRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   itemMerchant: {
     fontSize: 16,
     fontWeight: '500',
@@ -134,7 +197,6 @@ const styles = StyleSheet.create({
   itemAmount: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
   },
   separator: {
     height: StyleSheet.hairlineWidth,

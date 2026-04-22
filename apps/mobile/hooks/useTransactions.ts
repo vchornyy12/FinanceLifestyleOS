@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import type { TransactionType } from '@/types/database'
 
 export interface TransactionRow {
   id: string
@@ -9,7 +10,10 @@ export interface TransactionRow {
   merchant: string
   note: string | null
   date: string
-  transaction_source: string
+  source: string
+  type: TransactionType
+  from_account: string | null
+  to_account: string | null
   receipt_url: string | null
   created_at: string
 }
@@ -24,7 +28,6 @@ export function useTransactions(userId: string) {
       return
     }
 
-    // Initial fetch
     supabase
       .from('transactions')
       .select('*')
@@ -36,7 +39,6 @@ export function useTransactions(userId: string) {
         setLoading(false)
       })
 
-    // Realtime subscription
     const channel = supabase
       .channel(`transactions:${userId}`)
       .on(
