@@ -7,6 +7,7 @@
  *   supabase/migrations/003_receipt_storage.sql
  *   supabase/migrations/004_transaction_type.sql
  *   supabase/migrations/005_category_type.sql
+ *   supabase/migrations/006_category_tree.sql
  *
  * Pattern: Database["public"]["Tables"][TableName]["Row" | "Insert" | "Update"]
  */
@@ -33,6 +34,7 @@ export interface CategoryRow {
   name: string
   color: string
   type: CategoryType
+  parent_id: string | null
   created_at: string
 }
 
@@ -71,6 +73,7 @@ export interface CategoryInsert {
   name: string
   color: string
   type: CategoryType
+  parent_id?: string | null
   created_at?: string
 }
 
