@@ -60,6 +60,9 @@ export default function TransactionForm({ categories, transaction }: Transaction
   const defaultToAccount = transaction?.to_account ?? ''
 
   const isTransfer = type === 'transfer'
+  const filteredCategories = isTransfer
+    ? []
+    : categories.filter((c) => c.type === type || c.type === 'any')
   const payeeLabel = type === 'income' ? 'Source' : 'Merchant'
   const payeePlaceholder = type === 'income' ? 'e.g. Employer' : 'e.g. Biedronka'
 
@@ -232,7 +235,7 @@ export default function TransactionForm({ categories, transaction }: Transaction
             className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
           >
             <option value="">No category</option>
-            {categories.map((cat) => (
+            {filteredCategories.map((cat) => (
               <option key={cat.id} value={cat.id}>
                 {cat.name}
               </option>
