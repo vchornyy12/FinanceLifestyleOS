@@ -57,8 +57,13 @@ export function TransactionForm({ onSave, saving }: Props) {
     toAccount?: string
   }>({})
 
-  const selectedCategory = categories.find((c) => c.id === categoryId)
   const isTransfer = type === 'transfer'
+
+  const filteredCategories = isTransfer
+    ? []
+    : categories.filter((c) => c.type === type || c.type === 'any')
+
+  const selectedCategory = filteredCategories.find((c) => c.id === categoryId)
   const payeeLabel = type === 'income' ? 'Source' : 'Merchant'
   const payeePlaceholder = type === 'income' ? 'e.g. Employer' : 'e.g. Biedronka'
 
@@ -87,6 +92,11 @@ export function TransactionForm({ onSave, saving }: Props) {
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
+  }
+
+  function handleTypeChange(newType: TransactionType) {
+    setType(newType)
+    setCategoryId(null)
   }
 
   async function handleSave() {
@@ -131,7 +141,7 @@ export function TransactionForm({ onSave, saving }: Props) {
               <TouchableOpacity
                 key={opt.value}
                 style={[styles.segmentItem, active ? styles.segmentItemActive : null]}
-                onPress={() => setType(opt.value)}
+                onPress={() => handleTypeChange(opt.value)}
                 activeOpacity={0.8}
               >
                 <Text
@@ -331,7 +341,7 @@ export function TransactionForm({ onSave, saving }: Props) {
               </TouchableOpacity>
 
               <FlatList
-                data={categories}
+                data={filteredCategories}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                   <TouchableOpacity

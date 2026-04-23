@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-
-interface Category {
-  id: string
-  name: string
-}
+import type { Category } from '@/types/database'
 
 export function useCategories() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -13,11 +9,11 @@ export function useCategories() {
   useEffect(() => {
     supabase
       .from('categories')
-      .select('id, name')
+      .select('id, name, color, type, user_id, created_at')
       .order('name')
       .then(({ data, error }) => {
         if (error) console.error('useCategories fetch error:', error)
-        if (data) setCategories(data)
+        if (data) setCategories(data as Category[])
         setLoading(false)
       })
   }, [])
