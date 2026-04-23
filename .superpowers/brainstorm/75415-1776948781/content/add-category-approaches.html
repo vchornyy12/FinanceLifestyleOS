@@ -1,0 +1,101 @@
+<h2>How should the "Add category" form work?</h2>
+<p class="subtitle">3 approaches for creating a main category with subcategories</p>
+
+<div class="cards">
+
+  <!-- Option A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:16px;">
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:14px;font-size:12px;font-family:system-ui;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <input type="checkbox" checked style="accent-color:#18181b;" readonly>
+          <span style="font-weight:600;font-size:11px;color:#18181b;">Main category</span>
+          <span style="margin-left:auto;font-size:10px;color:#a1a1aa;">(can have subcategories)</span>
+        </div>
+        <input style="width:100%;border:1px solid #d4d4d8;border-radius:6px;padding:5px 8px;font-size:11px;margin-bottom:8px;box-sizing:border-box;" placeholder="Category name" readonly>
+        <div style="border:1px dashed #d4d4d8;border-radius:6px;padding:8px;background:#fafafa;">
+          <div style="font-size:10px;color:#71717a;margin-bottom:6px;font-weight:500;">Subcategories</div>
+          <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+            <div style="flex:1;background:#f4f4f5;border-radius:4px;padding:3px 6px;font-size:10px;">Salary</div>
+            <span style="color:#ef4444;font-size:10px;cursor:pointer;">✕</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;">
+            <div style="flex:1;background:#f4f4f5;border-radius:4px;padding:3px 6px;font-size:10px;">Bonus</div>
+            <span style="color:#ef4444;font-size:10px;cursor:pointer;">✕</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <input style="flex:1;border:1px solid #d4d4d8;border-radius:4px;padding:3px 6px;font-size:10px;" placeholder="+ Add subcategory" readonly>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Toggle + inline subcategories</h3>
+      <p>A "Main category" checkbox unlocks an inline subcategory list inside the same form. Add names one by one. All saved in one submit.</p>
+      <div class="pros-cons" style="font-size:11px;margin-top:8px;">
+        <div class="pros"><h4>Pros</h4><ul><li>One form, one submit</li><li>Clear visual grouping</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Form gets taller</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:16px;">
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:14px;font-size:12px;font-family:system-ui;">
+        <div style="font-size:10px;color:#71717a;margin-bottom:10px;">Step 1 of 2 — Category details</div>
+        <input style="width:100%;border:1px solid #d4d4d8;border-radius:6px;padding:5px 8px;font-size:11px;margin-bottom:8px;box-sizing:border-box;" placeholder="Category name" readonly>
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <label style="font-size:10px;display:flex;align-items:center;gap:4px;"><input type="radio" checked readonly> Expense</label>
+          <label style="font-size:10px;display:flex;align-items:center;gap:4px;"><input type="radio" readonly> Income</label>
+          <label style="font-size:10px;display:flex;align-items:center;gap:4px;"><input type="radio" readonly> Both</label>
+        </div>
+        <div style="border-top:1px solid #f4f4f5;padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
+          <button style="font-size:10px;border:1px solid #d4d4d8;background:white;border-radius:5px;padding:3px 8px;">Skip</button>
+          <button style="font-size:10px;background:#18181b;color:white;border:none;border-radius:5px;padding:3px 8px;">Next: Add subcategories →</button>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Two-step wizard</h3>
+      <p>Step 1: create the parent (name/type/color). Step 2: add subcategories. Can skip step 2 to create a standalone category.</p>
+      <div class="pros-cons" style="font-size:11px;margin-top:8px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Each step focused</li><li>Skip keeps it simple</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Two round-trips</li><li>More complex flow</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option C -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:16px;">
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:14px;font-size:12px;font-family:system-ui;">
+        <input style="width:100%;border:1px solid #d4d4d8;border-radius:6px;padding:5px 8px;font-size:11px;margin-bottom:8px;box-sizing:border-box;" placeholder="Category name" readonly>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <label style="font-size:10px;display:flex;align-items:center;gap:4px;"><input type="radio" checked readonly> Expense</label>
+          <label style="font-size:10px;display:flex;align-items:center;gap:4px;"><input type="radio" readonly> Income</label>
+        </div>
+        <div style="border-top:1px dashed #e2e8f0;padding-top:8px;margin-top:4px;">
+          <div style="font-size:10px;color:#71717a;margin-bottom:5px;font-weight:500;">Subcategories <span style="color:#a1a1aa;">(optional)</span></div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px;">
+            <span style="background:#f4f4f5;border-radius:20px;padding:2px 8px;font-size:10px;display:flex;align-items:center;gap:3px;">Salary <span style="color:#a1a1aa;">✕</span></span>
+            <span style="background:#f4f4f5;border-radius:20px;padding:2px 8px;font-size:10px;display:flex;align-items:center;gap:3px;">Bonus <span style="color:#a1a1aa;">✕</span></span>
+            <span style="background:#f4f4f5;border-radius:20px;padding:2px 8px;font-size:10px;color:#71717a;border:1px dashed #d4d4d8;cursor:pointer;">+ Add</span>
+          </div>
+        </div>
+        <div style="border-top:1px solid #f4f4f5;padding-top:8px;display:flex;justify-content:flex-end;">
+          <button style="font-size:10px;background:#18181b;color:white;border:none;border-radius:5px;padding:4px 10px;">Create</button>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Always-visible subcategory chips</h3>
+      <p>Subcategories section always shown at the bottom of the form. No toggle needed — just type and press enter to add chips. Having subcategories implicitly makes it a main category.</p>
+      <div class="pros-cons" style="font-size:11px;margin-top:8px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Fewest clicks</li><li>No mode-switching</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Form always tall</li><li>Chips UX is new pattern</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>

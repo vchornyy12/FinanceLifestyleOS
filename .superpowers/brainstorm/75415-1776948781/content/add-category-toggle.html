@@ -1,0 +1,123 @@
+<h2>Add / Edit Category — your approach</h2>
+<p class="subtitle">Two states of the same form. Which layout feels right?</p>
+
+<div class="split">
+
+  <!-- State 1: Main category checked -->
+  <div class="mockup">
+    <div class="mockup-header">✅ "Main category" checked</div>
+    <div class="mockup-body" style="font-size:12px;font-family:system-ui;">
+
+      <!-- Main category toggle -->
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:12px;">
+        <input type="checkbox" checked style="accent-color:#16a34a;width:14px;height:14px;" readonly>
+        <span style="font-size:12px;font-weight:600;color:#15803d;">Main category</span>
+        <span style="margin-left:auto;font-size:10px;color:#4ade80;">Other categories can be subcategories of this</span>
+      </div>
+
+      <!-- Name -->
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px;font-weight:500;color:#52525b;display:block;margin-bottom:3px;">Name</label>
+        <input style="width:100%;border:1px solid #d4d4d8;border-radius:6px;padding:6px 9px;font-size:11px;box-sizing:border-box;" value="Income" readonly>
+      </div>
+
+      <!-- Type -->
+      <div style="margin-bottom:10px;">
+        <div style="font-size:10px;font-weight:500;color:#52525b;margin-bottom:5px;">Type</div>
+        <div style="display:flex;gap:10px;">
+          <label style="font-size:11px;display:flex;align-items:center;gap:4px;"><input type="radio" name="t1" checked readonly> Expense</label>
+          <label style="font-size:11px;display:flex;align-items:center;gap:4px;"><input type="radio" name="t1" readonly> Income</label>
+          <label style="font-size:11px;display:flex;align-items:center;gap:4px;"><input type="radio" name="t1" readonly> Both</label>
+        </div>
+      </div>
+
+      <!-- Color -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:10px;font-weight:500;color:#52525b;margin-bottom:5px;">Color</div>
+        <div style="display:flex;gap:6px;">
+          <span style="width:20px;height:20px;border-radius:50%;background:#ef4444;display:inline-block;"></span>
+          <span style="width:20px;height:20px;border-radius:50%;background:#f97316;display:inline-block;"></span>
+          <span style="width:20px;height:20px;border-radius:50%;background:#10b981;display:inline-block;outline:2px solid #18181b;outline-offset:2px;"></span>
+          <span style="width:20px;height:20px;border-radius:50%;background:#3b82f6;display:inline-block;"></span>
+          <span style="width:20px;height:20px;border-radius:50%;background:#8b5cf6;display:inline-block;"></span>
+        </div>
+      </div>
+
+      <button style="background:#18181b;color:white;border:none;border-radius:6px;padding:7px 14px;font-size:11px;font-weight:500;">Create</button>
+    </div>
+  </div>
+
+  <!-- State 2: Main category unchecked -->
+  <div class="mockup">
+    <div class="mockup-header">☐ "Main category" unchecked → assign to a parent</div>
+    <div class="mockup-body" style="font-size:12px;font-family:system-ui;">
+
+      <!-- Main category toggle — unchecked -->
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#fafafa;border:1px solid #e4e4e7;border-radius:8px;margin-bottom:12px;">
+        <input type="checkbox" style="accent-color:#18181b;width:14px;height:14px;" readonly>
+        <span style="font-size:12px;font-weight:600;color:#3f3f46;">Main category</span>
+        <span style="margin-left:auto;font-size:10px;color:#a1a1aa;">Assign to a main category below</span>
+      </div>
+
+      <!-- Name -->
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10px;font-weight:500;color:#52525b;display:block;margin-bottom:3px;">Name</label>
+        <input style="width:100%;border:1px solid #d4d4d8;border-radius:6px;padding:6px 9px;font-size:11px;box-sizing:border-box;" value="Salary" readonly>
+      </div>
+
+      <!-- Color -->
+      <div style="margin-bottom:10px;">
+        <div style="font-size:10px;font-weight:500;color:#52525b;margin-bottom:5px;">Color</div>
+        <div style="display:flex;gap:6px;">
+          <span style="width:20px;height:20px;border-radius:50%;background:#ef4444;display:inline-block;"></span>
+          <span style="width:20px;height:20px;border-radius:50%;background:#f97316;display:inline-block;"></span>
+          <span style="width:20px;height:20px;border-radius:50%;background:#10b981;display:inline-block;outline:2px solid #18181b;outline-offset:2px;"></span>
+          <span style="width:20px;height:20px;border-radius:50%;background:#3b82f6;display:inline-block;"></span>
+          <span style="width:20px;height:20px;border-radius:50%;background:#8b5cf6;display:inline-block;"></span>
+        </div>
+      </div>
+
+      <!-- Parent category picker -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:10px;font-weight:500;color:#52525b;margin-bottom:5px;">Main category <span style="color:#ef4444;">*</span></div>
+        <div style="border:1px solid #d4d4d8;border-radius:8px;overflow:hidden;">
+          <!-- Option rows -->
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f0f9ff;border-bottom:1px solid #e0f2fe;">
+            <input type="radio" name="parent" checked readonly style="accent-color:#0284c7;">
+            <span style="width:10px;height:10px;border-radius:50%;background:#10b981;display:inline-block;"></span>
+            <span style="font-size:11px;font-weight:500;color:#0c4a6e;">Income</span>
+            <span style="margin-left:auto;font-size:10px;color:#7dd3fc;">income</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f4f4f5;">
+            <input type="radio" name="parent" readonly>
+            <span style="width:10px;height:10px;border-radius:50%;background:#f97316;display:inline-block;"></span>
+            <span style="font-size:11px;color:#3f3f46;">Food & Dining</span>
+            <span style="margin-left:auto;font-size:10px;color:#a1a1aa;">expense</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f4f4f5;">
+            <input type="radio" name="parent" readonly>
+            <span style="width:10px;height:10px;border-radius:50%;background:#3b82f6;display:inline-block;"></span>
+            <span style="font-size:11px;color:#3f3f46;">Housing & Bills</span>
+            <span style="margin-left:auto;font-size:10px;color:#a1a1aa;">expense</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f4f4f5;">
+            <input type="radio" name="parent" readonly>
+            <span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>
+            <span style="font-size:11px;color:#3f3f46;">Transport</span>
+            <span style="margin-left:auto;font-size:10px;color:#a1a1aa;">expense</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;">
+            <input type="radio" name="parent" readonly>
+            <span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;display:inline-block;"></span>
+            <span style="font-size:11px;color:#3f3f46;">Personal</span>
+            <span style="margin-left:auto;font-size:10px;color:#a1a1aa;">expense</span>
+          </div>
+        </div>
+        <p style="font-size:10px;color:#71717a;margin-top:4px;">Type is inherited from the selected main category.</p>
+      </div>
+
+      <button style="background:#18181b;color:white;border:none;border-radius:6px;padding:7px 14px;font-size:11px;font-weight:500;">Create</button>
+    </div>
+  </div>
+
+</div>
