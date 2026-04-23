@@ -2,23 +2,14 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { z } from 'zod'
-
-// ---------------------------------------------------------------------------
-// Validation schema
-// ---------------------------------------------------------------------------
-
-const CategorySchema = z.object({
-  name: z.string().min(1, 'Name is required').max(50, 'Name too long'),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color'),
-})
+import { CategorySchema } from '@/lib/schemas/category'
 
 // ---------------------------------------------------------------------------
 // Shared return type
 // ---------------------------------------------------------------------------
 
 export type CategoryActionState = {
-  fieldErrors?: { name?: string[]; color?: string[] }
+  fieldErrors?: { name?: string[]; color?: string[]; type?: string[] }
   error?: string
   success?: boolean
   requiresReassignment?: boolean
@@ -46,6 +37,7 @@ export async function createCategory(
   const raw = {
     name: formData.get('name'),
     color: formData.get('color'),
+    type: formData.get('type'),
   }
 
   const parsed = CategorySchema.safeParse(raw)
@@ -64,12 +56,13 @@ export async function createCategory(
     return { error: 'Not authenticated.' }
   }
 
-  const { name, color } = parsed.data
+  const { name, color, type } = parsed.data
 
   const { error } = await supabase.from('categories').insert({
     user_id: user.id,
     name,
     color,
+    type,
   })
 
   if (error) {
@@ -100,6 +93,7 @@ export async function updateCategory(
   const raw = {
     name: formData.get('name'),
     color: formData.get('color'),
+    type: formData.get('type'),
   }
 
   const parsed = CategorySchema.safeParse(raw)
@@ -118,12 +112,12 @@ export async function updateCategory(
     return { error: 'Not authenticated.' }
   }
 
-  const { name, color } = parsed.data
+  const { name, color, type } = parsed.data
 
   // Explicit user_id filter as defence-in-depth over RLS.
   const { data: updated, error } = await supabase
     .from('categories')
-    .update({ name, color })
+    .update({ name, color, type })
     .eq('id', id)
     .eq('user_id', user.id)
     .select('id')
