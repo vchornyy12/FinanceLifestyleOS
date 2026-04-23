@@ -48,6 +48,7 @@ export default function CategoryForm({ category, onCancel }: CategoryFormProps) 
   )
 
   const defaultColor = category?.color ?? PRESET_COLORS[5] // #3B82F6 blue
+  const defaultType = category?.type ?? 'expense'
 
   return (
     <form action={formAction} className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
@@ -84,6 +85,33 @@ export default function CategoryForm({ category, onCancel }: CategoryFormProps) 
           className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
         />
         {state?.fieldErrors?.name?.map((msg) => (
+          <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
+            {msg}
+          </p>
+        ))}
+      </div>
+
+      {/* Type selector */}
+      <div className="mb-4">
+        <p className="mb-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">Type</p>
+        <div role="radiogroup" aria-label="Category type" className="flex gap-4">
+          {(['expense', 'income', 'any'] as const).map((t) => (
+            <label key={t} className="flex cursor-pointer items-center gap-1.5">
+              <input
+                type="radio"
+                name="type"
+                value={t}
+                defaultChecked={t === defaultType}
+                required
+                className="accent-zinc-900 dark:accent-zinc-100"
+              />
+              <span className="text-sm capitalize text-zinc-700 dark:text-zinc-300">
+                {t === 'any' ? 'Both' : t}
+              </span>
+            </label>
+          ))}
+        </div>
+        {state?.fieldErrors?.type?.map((msg) => (
           <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
             {msg}
           </p>
