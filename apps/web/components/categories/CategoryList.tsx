@@ -47,9 +47,12 @@ export default function CategoryList({ systemCategories, userCategories }: Categ
             >
               <ColorDot color={cat.color} />
               <span className="text-sm text-zinc-700 dark:text-zinc-300">{cat.name}</span>
-              <span className="ml-auto rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                System
-              </span>
+              <div className="ml-auto flex items-center gap-2">
+                <TypeBadge type={cat.type} />
+                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                  System
+                </span>
+              </div>
             </li>
           ))}
         </ul>
@@ -140,6 +143,7 @@ function UserCategoryRow({ category, allCategories, onEdit }: UserCategoryRowPro
         <span className="text-sm text-zinc-700 dark:text-zinc-300">{category.name}</span>
 
         <div className="ml-auto flex items-center gap-2">
+          <TypeBadge type={category.type} />
           {/* Edit button */}
           <button
             type="button"
@@ -238,6 +242,29 @@ function ReassignPrompt({ categoryId, count, options }: ReassignPromptProps) {
         </button>
       </form>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// TypeBadge
+// ---------------------------------------------------------------------------
+
+interface TypeBadgeProps {
+  type: string
+}
+
+function TypeBadge({ type }: TypeBadgeProps) {
+  const label = type === 'any' ? 'Both' : type
+  const colorClass =
+    type === 'income'
+      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+      : type === 'expense'
+        ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+        : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-xs capitalize ${colorClass}`}>
+      {label}
+    </span>
   )
 }
 
