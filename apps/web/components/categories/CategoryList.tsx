@@ -6,24 +6,15 @@ import type { CategoryWithChildren } from '@/lib/supabase/queries/categories'
 import { deleteCategory, type CategoryActionState } from '@/lib/actions/categories'
 import CategoryForm from './CategoryForm'
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface CategoryListProps {
   tree: CategoryWithChildren[]
 }
-
-// ---------------------------------------------------------------------------
-// Main component
-// ---------------------------------------------------------------------------
 
 export default function CategoryList({ tree }: CategoryListProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [showCreateFor, setShowCreateFor] = useState<'top-level' | string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  // Reset UI when tree changes (server revalidation after create/update/delete)
   useEffect(() => {
     setEditingId(null)
     setShowCreateFor(null)
@@ -37,16 +28,20 @@ export default function CategoryList({ tree }: CategoryListProps) {
     })
   }
 
-  // Flat list of all categories (for reassignment dropdowns)
   const allCategories: Category[] = tree.flatMap((p) => [p, ...p.children])
+  // Top-level categories only — passed to every CategoryForm for the parent radio list
+  const mainCategories: Category[] = tree
 
   return (
     <div className="flex flex-col gap-2">
       {tree.map((parent) => (
         <div key={parent.id} className="flex flex-col gap-1">
-          {/* Parent row or inline edit form */}
           {editingId === parent.id ? (
-            <CategoryForm category={parent} onCancel={() => setEditingId(null)} />
+            <CategoryForm
+              category={parent}
+              mainCategories={mainCategories}
+              onCancel={() => setEditingId(null)}
+            />
           ) : (
             <ParentRow
               category={parent}
@@ -61,7 +56,6 @@ export default function CategoryList({ tree }: CategoryListProps) {
             />
           )}
 
-          {/* Subcategories — shown when expanded */}
           {expandedIds.has(parent.id) && (
             <div className="ml-7 flex flex-col gap-1">
               {parent.children.map((child) =>
@@ -69,7 +63,7 @@ export default function CategoryList({ tree }: CategoryListProps) {
                   <CategoryForm
                     key={child.id}
                     category={child}
-                    parentCategory={parent}
+                    mainCategories={mainCategories}
                     onCancel={() => setEditingId(null)}
                   />
                 ) : (
@@ -82,10 +76,10 @@ export default function CategoryList({ tree }: CategoryListProps) {
                 ),
               )}
 
-              {/* Inline create-subcategory form */}
               {showCreateFor === parent.id && (
                 <CategoryForm
-                  parentCategory={parent}
+                  mainCategories={mainCategories}
+                  defaultParentId={parent.id}
                   onCancel={() => setShowCreateFor(null)}
                 />
               )}
@@ -94,10 +88,12 @@ export default function CategoryList({ tree }: CategoryListProps) {
         </div>
       ))}
 
-      {/* Create top-level category */}
       <div className="mt-4">
         {showCreateFor === 'top-level' ? (
-          <CategoryForm onCancel={() => setShowCreateFor(null)} />
+          <CategoryForm
+            mainCategories={mainCategories}
+            onCancel={() => setShowCreateFor(null)}
+          />
         ) : (
           <div className="flex justify-end">
             <button
@@ -113,10 +109,6 @@ export default function CategoryList({ tree }: CategoryListProps) {
     </div>
   )
 }
-
-// ---------------------------------------------------------------------------
-// ParentRow
-// ---------------------------------------------------------------------------
 
 interface ParentRowProps {
   category: CategoryWithChildren
@@ -137,7 +129,6 @@ function ParentRow({ category, expanded, onToggle, onEdit, onAddSub, allCategori
   return (
     <div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex items-center gap-2 px-4 py-3">
-        {/* Expand/collapse toggle */}
         <button
           type="button"
           onClick={onToggle}
@@ -200,10 +191,6 @@ function ParentRow({ category, expanded, onToggle, onEdit, onAddSub, allCategori
   )
 }
 
-// ---------------------------------------------------------------------------
-// LeafRow
-// ---------------------------------------------------------------------------
-
 interface LeafRowProps {
   category: Category
   onEdit: () => void
@@ -261,10 +248,6 @@ function LeafRow({ category, onEdit, allCategories }: LeafRowProps) {
     </div>
   )
 }
-
-// ---------------------------------------------------------------------------
-// ReassignPrompt
-// ---------------------------------------------------------------------------
 
 interface ReassignPromptProps {
   categoryId: string
@@ -325,10 +308,6 @@ function ReassignPrompt({ categoryId, count, subcategoryCount, options }: Reassi
   )
 }
 
-// ---------------------------------------------------------------------------
-// TypeBadge
-// ---------------------------------------------------------------------------
-
 function TypeBadge({ type }: { type: Category['type'] }) {
   const label = type === 'any' ? 'Both' : type
   const colorClass =
@@ -343,10 +322,6 @@ function TypeBadge({ type }: { type: Category['type'] }) {
     </span>
   )
 }
-
-// ---------------------------------------------------------------------------
-// ColorDot
-// ---------------------------------------------------------------------------
 
 function ColorDot({ color }: { color: string }) {
   return (

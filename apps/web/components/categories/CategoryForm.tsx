@@ -1,54 +1,52 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useState, useActionState } from 'react'
 import type { Category } from '@/types/database'
 import { createCategory, updateCategory, type CategoryActionState } from '@/lib/actions/categories'
 
-// ---------------------------------------------------------------------------
-// 12 preset color swatches
-// ---------------------------------------------------------------------------
-
 const PRESET_COLORS = [
-  '#EF4444',
-  '#F97316',
-  '#EAB308',
-  '#22C55E',
-  '#14B8A6',
-  '#3B82F6',
-  '#8B5CF6',
-  '#EC4899',
-  '#06B6D4',
-  '#F59E0B',
-  '#10B981',
-  '#6B7280',
+  '#EF4444', '#F97316', '#EAB308', '#22C55E', '#14B8A6',
+  '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4', '#F59E0B',
+  '#10B981', '#6B7280',
 ] as const
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface CategoryFormProps {
-  /** Editing an existing category. */
+  /** Editing an existing category. Drives default checkbox state + pre-selected parent. */
   category?: Category
-  /** When set, this form creates a subcategory under this parent. */
-  parentCategory?: Category
+  /** Full list of top-level categories for the parent radio list. */
+  mainCategories: Category[]
+  /** Pre-selects a parent and unchecks "Main category". Used by the "+ Sub" button. */
+  defaultParentId?: string
   onCancel: () => void
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
-export default function CategoryForm({ category, parentCategory, onCancel }: CategoryFormProps) {
+export default function CategoryForm({ category, mainCategories, defaultParentId, onCancel }: CategoryFormProps) {
   const isEdit = category !== undefined
-  const isSub = parentCategory !== undefined && !isEdit
+
+  const initialIsMain = category ? category.parent_id === null : defaultParentId === undefined
+  const [isMain, setIsMain] = useState(initialIsMain)
+  const [selectedParentId, setSelectedParentId] = useState(
+    defaultParentId ?? category?.parent_id ?? ''
+  )
 
   const action = isEdit ? updateCategory : createCategory
   const [state, formAction, isPending] = useActionState<CategoryActionState, FormData>(action, null)
 
-  // In subcategory-create mode, inherit parent's color; otherwise use blue default
-  const defaultColor = category?.color ?? parentCategory?.color ?? PRESET_COLORS[5]
-  const defaultType = category?.type ?? parentCategory?.type ?? 'expense'
+  const selectedParent = mainCategories.find((c) => c.id === selectedParentId)
+
+  const defaultColor = category?.color ?? PRESET_COLORS[5]
+  const defaultType = category?.type ?? 'expense'
+
+  let heading: string
+  if (isEdit) {
+    heading = isMain ? 'Edit category' : 'Edit subcategory'
+  } else if (!isMain && selectedParent) {
+    heading = `New subcategory under "${selectedParent.name}"`
+  } else if (!isMain) {
+    heading = 'New subcategory'
+  } else {
+    heading = 'New category'
+  }
 
   return (
     <form
@@ -56,25 +54,21 @@ export default function CategoryForm({ category, parentCategory, onCancel }: Cat
       className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
     >
       {isEdit && <input type="hidden" name="id" value={category.id} />}
-      {/* parent_id: present when creating a subcategory, or preserving existing parent */}
-      <input
-        type="hidden"
-        name="parent_id"
-        value={
-          isEdit
-            ? (category.parent_id ?? '')
-            : isSub
-              ? parentCategory.id
-              : ''
-        }
-      />
+      <input type="hidden" name="parent_id" value={isMain ? '' : selectedParentId} />
+
+      {/* Main category toggle */}
+      <label className="mb-4 flex cursor-pointer items-center gap-2.5">
+        <input
+          type="checkbox"
+          checked={isMain}
+          onChange={(e) => setIsMain(e.target.checked)}
+          className="h-4 w-4 accent-zinc-900 dark:accent-zinc-100"
+        />
+        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Main category</span>
+      </label>
 
       <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-        {isEdit
-          ? 'Edit category'
-          : isSub
-            ? `New subcategory under "${parentCategory.name}"`
-            : 'New category'}
+        {heading}
       </h3>
 
       {state?.error && (
@@ -98,7 +92,7 @@ export default function CategoryForm({ category, parentCategory, onCancel }: Cat
           required
           defaultValue={category?.name ?? ''}
           maxLength={50}
-          placeholder={isSub ? 'e.g. Supermarket' : 'e.g. Food & Dining'}
+          placeholder={isMain ? 'e.g. Food & Dining' : 'e.g. Supermarket'}
           className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
         />
         {state?.fieldErrors?.name?.map((msg) => (
@@ -106,8 +100,8 @@ export default function CategoryForm({ category, parentCategory, onCancel }: Cat
         ))}
       </div>
 
-      {/* Type selector — hidden for subcategories (type fixed by parent) */}
-      {!isSub && (
+      {/* Type — main categories only */}
+      {isMain && (
         <div className="mb-4">
           <p className="mb-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">Type</p>
           <div role="radiogroup" aria-label="Category type" className="flex gap-4">
@@ -133,23 +127,72 @@ export default function CategoryForm({ category, parentCategory, onCancel }: Cat
         </div>
       )}
 
-      {/* Hidden type input for subcategories (inherited from parent) */}
-      {isSub && <input type="hidden" name="type" value={defaultType} />}
+      {/* Color — main categories only */}
+      {isMain && (
+        <div className="mb-5">
+          <p className="mb-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">Color</p>
+          <ColorPicker defaultColor={defaultColor} />
+          {state?.fieldErrors?.color?.map((msg) => (
+            <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">{msg}</p>
+          ))}
+        </div>
+      )}
 
-      {/* Color picker */}
-      <div className="mb-5">
-        <p className="mb-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">Color</p>
-        <ColorPicker defaultColor={defaultColor} />
-        {state?.fieldErrors?.color?.map((msg) => (
-          <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">{msg}</p>
-        ))}
-      </div>
+      {/* Hidden type + color inherited from selected parent (subcategory mode) */}
+      {!isMain && (
+        <>
+          <input type="hidden" name="type" value={selectedParent?.type ?? ''} />
+          <input type="hidden" name="color" value={selectedParent?.color ?? ''} />
+        </>
+      )}
+
+      {/* Parent radio list — subcategory mode only */}
+      {!isMain && (
+        <div className="mb-5">
+          <p className="mb-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
+            Main category <span className="text-red-500">*</span>
+          </p>
+          <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
+            {mainCategories.map((cat, i) => (
+              <label
+                key={cat.id}
+                className={[
+                  'flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors',
+                  'hover:bg-zinc-50 dark:hover:bg-zinc-800',
+                  selectedParentId === cat.id
+                    ? 'bg-zinc-50 dark:bg-zinc-800'
+                    : 'bg-white dark:bg-zinc-900',
+                  i < mainCategories.length - 1
+                    ? 'border-b border-zinc-100 dark:border-zinc-800'
+                    : '',
+                ].join(' ')}
+              >
+                <input
+                  type="radio"
+                  name="_parent_radio"
+                  value={cat.id}
+                  checked={selectedParentId === cat.id}
+                  onChange={() => setSelectedParentId(cat.id)}
+                  className="accent-zinc-900 dark:accent-zinc-100"
+                />
+                <span
+                  className="block h-2.5 w-2.5 flex-shrink-0 rounded-full"
+                  style={{ backgroundColor: cat.color }}
+                  aria-hidden="true"
+                />
+                <span className="flex-1 text-sm text-zinc-700 dark:text-zinc-300">{cat.name}</span>
+                <TypeBadge type={cat.type} />
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          disabled={isPending}
+          disabled={isPending || (!isMain && !selectedParentId)}
           className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
         >
           {isPending ? 'Saving…' : isEdit ? 'Save changes' : 'Create'}
@@ -166,19 +209,11 @@ export default function CategoryForm({ category, parentCategory, onCancel }: Cat
   )
 }
 
-// ---------------------------------------------------------------------------
-// ColorPicker
-// ---------------------------------------------------------------------------
-
 function ColorPicker({ defaultColor }: { defaultColor: string }) {
   return (
     <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Category color">
       {PRESET_COLORS.map((color) => (
-        <label
-          key={color}
-          className="relative cursor-pointer"
-          aria-label={color}
-        >
+        <label key={color} className="relative cursor-pointer" aria-label={color}>
           <input
             type="radio"
             name="color"
@@ -194,5 +229,20 @@ function ColorPicker({ defaultColor }: { defaultColor: string }) {
         </label>
       ))}
     </div>
+  )
+}
+
+function TypeBadge({ type }: { type: Category['type'] }) {
+  const label = type === 'any' ? 'Both' : type
+  const colorClass =
+    type === 'income'
+      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+      : type === 'expense'
+        ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+        : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-xs capitalize ${colorClass}`}>
+      {label}
+    </span>
   )
 }
