@@ -7,6 +7,7 @@
 
 export type TransactionSource = 'manual' | 'bank_sync' | 'ocr'
 export type TransactionType = 'expense' | 'income' | 'transfer'
+export type CategoryType = 'expense' | 'income' | 'any'
 
 export interface TransactionRow {
   id: string
@@ -30,6 +31,7 @@ export interface CategoryRow {
   user_id: string | null
   name: string
   color: string
+  type: CategoryType
   created_at: string
 }
 

@@ -12,6 +12,7 @@
 
 export type TransactionSource = 'manual' | 'bank_sync' | 'ocr'
 export type TransactionType = 'expense' | 'income' | 'transfer'
+export type CategoryType = 'expense' | 'income' | 'any'
 
 // ---------------------------------------------------------------------------
 // Table row shapes
@@ -30,6 +31,7 @@ export interface CategoryRow {
   user_id: string | null
   name: string
   color: string
+  type: CategoryType
   created_at: string
 }
 
@@ -67,6 +69,7 @@ export interface CategoryInsert {
   user_id?: string | null
   name: string
   color: string
+  type: CategoryType
   created_at?: string
 }
 
@@ -123,6 +126,7 @@ export interface Database {
     Enums: {
       transaction_source: TransactionSource
       transaction_type: TransactionType
+      category_type: CategoryType
     }
   }
 }
