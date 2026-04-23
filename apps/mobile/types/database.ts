@@ -32,6 +32,7 @@ export interface CategoryRow {
   name: string
   color: string
   type: CategoryType
+  parent_id: string | null
   created_at: string
 }
 
