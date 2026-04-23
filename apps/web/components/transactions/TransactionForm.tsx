@@ -229,6 +229,7 @@ export default function TransactionForm({ categories, transaction }: Transaction
             Category
           </label>
           <select
+            key={type}
             id="category_id"
             name="category_id"
             defaultValue={defaultCategoryId}

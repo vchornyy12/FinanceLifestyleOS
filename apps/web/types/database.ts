@@ -6,6 +6,7 @@
  *   supabase/migrations/002_rls_policies.sql
  *   supabase/migrations/003_receipt_storage.sql
  *   supabase/migrations/004_transaction_type.sql
+ *   supabase/migrations/005_category_type.sql
  *
  * Pattern: Database["public"]["Tables"][TableName]["Row" | "Insert" | "Update"]
  */

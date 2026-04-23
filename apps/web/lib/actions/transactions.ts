@@ -6,6 +6,28 @@ import { TransactionSchema } from '@/lib/schemas/transaction'
 import type { TransactionType } from '@/types/database'
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+async function validateCategoryType(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  categoryId: string,
+  transactionType: string,
+): Promise<string | null> {
+  if (transactionType === 'transfer') return null
+  const { data } = await supabase
+    .from('categories')
+    .select('type')
+    .eq('id', categoryId)
+    .single()
+  if (!data) return 'Category not found.'
+  if (data.type !== 'any' && data.type !== transactionType) {
+    return `This category is for ${data.type} transactions.`
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
 // Shared return type
 // ---------------------------------------------------------------------------
 
@@ -25,7 +47,7 @@ export type TransactionActionState = {
 } | null
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Input extraction
 // ---------------------------------------------------------------------------
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -75,6 +97,11 @@ export async function createTransaction(
 
   if (userError || !user) {
     return { error: 'Not authenticated.' }
+  }
+
+  if (parsed.data.category_id) {
+    const catErr = await validateCategoryType(supabase, parsed.data.category_id, parsed.data.type)
+    if (catErr) return { error: catErr }
   }
 
   const { type, merchant, amount, category_id, date, note, from_account, to_account } =
@@ -127,6 +154,11 @@ export async function updateTransaction(
   } = await supabase.auth.getUser()
   if (userError || !user) {
     return { error: 'Not authenticated.' }
+  }
+
+  if (parsed.data.category_id) {
+    const catErr = await validateCategoryType(supabase, parsed.data.category_id, parsed.data.type)
+    if (catErr) return { error: catErr }
   }
 
   const { type, merchant, amount, category_id, date, note, from_account, to_account } =

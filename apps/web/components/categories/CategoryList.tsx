@@ -250,7 +250,7 @@ function ReassignPrompt({ categoryId, count, options }: ReassignPromptProps) {
 // ---------------------------------------------------------------------------
 
 interface TypeBadgeProps {
-  type: string
+  type: Category['type']
 }
 
 function TypeBadge({ type }: TypeBadgeProps) {
