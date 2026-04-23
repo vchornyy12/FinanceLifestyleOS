@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useActionState } from 'react'
 import type { Category } from '@/types/database'
+import type { CategoryWithChildren } from '@/lib/supabase/queries/categories'
 import { deleteCategory, type CategoryActionState } from '@/lib/actions/categories'
 import CategoryForm from './CategoryForm'
 
@@ -10,141 +11,157 @@ import CategoryForm from './CategoryForm'
 // ---------------------------------------------------------------------------
 
 interface CategoryListProps {
-  systemCategories: Category[]
-  userCategories: Category[]
+  tree: CategoryWithChildren[]
 }
 
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
-export default function CategoryList({ systemCategories, userCategories }: CategoryListProps) {
-  const [showCreateForm, setShowCreateForm] = useState(false)
+export default function CategoryList({ tree }: CategoryListProps) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [showCreateFor, setShowCreateFor] = useState<'top-level' | string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  // Reset inline edit when the list changes (e.g. after delete/create re-render)
+  // Reset UI when tree changes (server revalidation after create/update/delete)
   useEffect(() => {
     setEditingId(null)
-  }, [userCategories])
+    setShowCreateFor(null)
+  }, [tree])
+
+  function toggle(id: string) {
+    setExpandedIds((prev) => {
+      const s = new Set(prev)
+      s.has(id) ? s.delete(id) : s.add(id)
+      return s
+    })
+  }
+
+  // Flat list of all categories (for reassignment dropdowns)
+  const allCategories: Category[] = tree.flatMap((p) => [p, ...p.children])
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* ------------------------------------------------------------------ */}
-      {/* System defaults                                                     */}
-      {/* ------------------------------------------------------------------ */}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          System defaults
-        </h2>
-        <p className="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
-          These categories are built-in and cannot be edited or deleted.
-        </p>
-        <ul className="flex flex-col gap-2">
-          {systemCategories.map((cat) => (
-            <li
-              key={cat.id}
-              className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900"
-            >
-              <ColorDot color={cat.color} />
-              <span className="text-sm text-zinc-700 dark:text-zinc-300">{cat.name}</span>
-              <div className="ml-auto flex items-center gap-2">
-                <TypeBadge type={cat.type} />
-                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                  System
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
+    <div className="flex flex-col gap-2">
+      {tree.map((parent) => (
+        <div key={parent.id} className="flex flex-col gap-1">
+          {/* Parent row or inline edit form */}
+          {editingId === parent.id ? (
+            <CategoryForm category={parent} onCancel={() => setEditingId(null)} />
+          ) : (
+            <ParentRow
+              category={parent}
+              expanded={expandedIds.has(parent.id)}
+              onToggle={() => toggle(parent.id)}
+              onEdit={() => setEditingId(parent.id)}
+              onAddSub={() => {
+                setExpandedIds((prev) => new Set([...prev, parent.id]))
+                setShowCreateFor(parent.id)
+              }}
+              allCategories={allCategories}
+            />
+          )}
 
-      {/* ------------------------------------------------------------------ */}
-      {/* User categories                                                     */}
-      {/* ------------------------------------------------------------------ */}
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Your categories
-          </h2>
-          {!showCreateForm && (
+          {/* Subcategories — shown when expanded */}
+          {expandedIds.has(parent.id) && (
+            <div className="ml-7 flex flex-col gap-1">
+              {parent.children.map((child) =>
+                editingId === child.id ? (
+                  <CategoryForm
+                    key={child.id}
+                    category={child}
+                    parentCategory={parent}
+                    onCancel={() => setEditingId(null)}
+                  />
+                ) : (
+                  <LeafRow
+                    key={child.id}
+                    category={child}
+                    onEdit={() => setEditingId(child.id)}
+                    allCategories={allCategories}
+                  />
+                ),
+              )}
+
+              {/* Inline create-subcategory form */}
+              {showCreateFor === parent.id && (
+                <CategoryForm
+                  parentCategory={parent}
+                  onCancel={() => setShowCreateFor(null)}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Create top-level category */}
+      <div className="mt-4">
+        {showCreateFor === 'top-level' ? (
+          <CategoryForm onCancel={() => setShowCreateFor(null)} />
+        ) : (
+          <div className="flex justify-end">
             <button
               type="button"
-              onClick={() => setShowCreateForm(true)}
+              onClick={() => setShowCreateFor('top-level')}
               className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
             >
               + Add category
             </button>
-          )}
-        </div>
-
-        {/* Create form */}
-        {showCreateForm && (
-          <div className="mb-4">
-            <CategoryForm
-              onCancel={() => setShowCreateForm(false)}
-            />
           </div>
         )}
-
-        {/* User category rows */}
-        {userCategories.length === 0 && !showCreateForm ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            No custom categories yet. Add one above.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {userCategories.map((cat) => (
-              <li key={cat.id} className="flex flex-col gap-2">
-                {editingId === cat.id ? (
-                  <CategoryForm
-                    category={cat}
-                    onCancel={() => setEditingId(null)}
-                  />
-                ) : (
-                  <UserCategoryRow
-                    category={cat}
-                    allCategories={[...systemCategories, ...userCategories]}
-                    onEdit={() => setEditingId(cat.id)}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      </div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// UserCategoryRow
+// ParentRow
 // ---------------------------------------------------------------------------
 
-interface UserCategoryRowProps {
-  category: Category
-  allCategories: Category[]
+interface ParentRowProps {
+  category: CategoryWithChildren
+  expanded: boolean
+  onToggle: () => void
   onEdit: () => void
+  onAddSub: () => void
+  allCategories: Category[]
 }
 
-function UserCategoryRow({ category, allCategories, onEdit }: UserCategoryRowProps) {
+function ParentRow({ category, expanded, onToggle, onEdit, onAddSub, allCategories }: ParentRowProps) {
   const [state, formAction, isPending] = useActionState<CategoryActionState, FormData>(
     deleteCategory,
     null,
   )
-
-  // Possible categories to reassign to (excluding the category being deleted)
   const reassignOptions = allCategories.filter((c) => c.id !== category.id)
 
   return (
     <div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-      {/* Main row */}
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex items-center gap-2 px-4 py-3">
+        {/* Expand/collapse toggle */}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={expanded ? 'Collapse' : 'Expand'}
+          className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-zinc-400 transition-transform hover:text-zinc-700 dark:hover:text-zinc-300"
+          style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+        >
+          ▶
+        </button>
         <ColorDot color={category.color} />
-        <span className="text-sm text-zinc-700 dark:text-zinc-300">{category.name}</span>
+        <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{category.name}</span>
+        <span className="ml-1 text-xs text-zinc-400 dark:text-zinc-500">
+          {category.children.length > 0 ? `${category.children.length}` : ''}
+        </span>
 
         <div className="ml-auto flex items-center gap-2">
           <TypeBadge type={category.type} />
-          {/* Edit button */}
+          <button
+            type="button"
+            onClick={onAddSub}
+            className="rounded-md px-2 py-1 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          >
+            + Sub
+          </button>
           <button
             type="button"
             onClick={onEdit}
@@ -152,8 +169,6 @@ function UserCategoryRow({ category, allCategories, onEdit }: UserCategoryRowPro
           >
             Edit
           </button>
-
-          {/* Delete form */}
           <form action={formAction}>
             <input type="hidden" name="id" value={category.id} />
             <button
@@ -167,18 +182,79 @@ function UserCategoryRow({ category, allCategories, onEdit }: UserCategoryRowPro
         </div>
       </div>
 
-      {/* Error message */}
       {state?.error && (
         <div className="border-t border-zinc-200 px-4 py-2 dark:border-zinc-800">
           <p className="text-xs text-red-600 dark:text-red-400">{state.error}</p>
         </div>
       )}
 
-      {/* Reassignment prompt */}
       {state?.requiresReassignment && (
         <ReassignPrompt
           categoryId={category.id}
           count={state.count ?? 0}
+          subcategoryCount={state.subcategoryCount ?? 0}
+          options={reassignOptions}
+        />
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// LeafRow
+// ---------------------------------------------------------------------------
+
+interface LeafRowProps {
+  category: Category
+  onEdit: () => void
+  allCategories: Category[]
+}
+
+function LeafRow({ category, onEdit, allCategories }: LeafRowProps) {
+  const [state, formAction, isPending] = useActionState<CategoryActionState, FormData>(
+    deleteCategory,
+    null,
+  )
+  const reassignOptions = allCategories.filter((c) => c.id !== category.id)
+
+  return (
+    <div className="rounded-lg border border-zinc-100 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50">
+      <div className="flex items-center gap-3 px-4 py-2.5">
+        <ColorDot color={category.color} />
+        <span className="text-sm text-zinc-700 dark:text-zinc-300">{category.name}</span>
+
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-md px-2 py-1 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          >
+            Edit
+          </button>
+          <form action={formAction}>
+            <input type="hidden" name="id" value={category.id} />
+            <button
+              type="submit"
+              disabled={isPending}
+              className="rounded-md px-2 py-1 text-xs font-medium text-red-500 transition-colors hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-red-950 dark:hover:text-red-400"
+            >
+              {isPending ? 'Deleting…' : 'Delete'}
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {state?.error && (
+        <div className="border-t border-zinc-100 px-4 py-2 dark:border-zinc-800">
+          <p className="text-xs text-red-600 dark:text-red-400">{state.error}</p>
+        </div>
+      )}
+
+      {state?.requiresReassignment && (
+        <ReassignPrompt
+          categoryId={category.id}
+          count={state.count ?? 0}
+          subcategoryCount={0}
           options={reassignOptions}
         />
       )}
@@ -193,20 +269,26 @@ function UserCategoryRow({ category, allCategories, onEdit }: UserCategoryRowPro
 interface ReassignPromptProps {
   categoryId: string
   count: number
+  subcategoryCount: number
   options: Category[]
 }
 
-function ReassignPrompt({ categoryId, count, options }: ReassignPromptProps) {
+function ReassignPrompt({ categoryId, count, subcategoryCount, options }: ReassignPromptProps) {
   const [state, formAction, isPending] = useActionState<CategoryActionState, FormData>(
     deleteCategory,
     null,
   )
 
+  const txLabel = `${count} transaction${count !== 1 ? 's' : ''}`
+  const subLabel =
+    subcategoryCount > 0
+      ? ` (and ${subcategoryCount} subcategor${subcategoryCount !== 1 ? 'ies' : 'y'})`
+      : ''
+
   return (
     <div className="border-t border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950">
       <p className="mb-3 text-xs text-amber-800 dark:text-amber-300">
-        This category is used by {count} transaction{count !== 1 ? 's' : ''}. Please reassign
-        them to another category before deleting.
+        This category has {txLabel}{subLabel}. Reassign them before deleting.
       </p>
 
       {state?.error && (
@@ -215,7 +297,6 @@ function ReassignPrompt({ categoryId, count, options }: ReassignPromptProps) {
 
       <form action={formAction} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="id" value={categoryId} />
-
         <label htmlFor={`reassign-${categoryId}`} className="sr-only">
           Reassign transactions to
         </label>
@@ -232,7 +313,6 @@ function ReassignPrompt({ categoryId, count, options }: ReassignPromptProps) {
             </option>
           ))}
         </select>
-
         <button
           type="submit"
           disabled={isPending}
@@ -249,11 +329,7 @@ function ReassignPrompt({ categoryId, count, options }: ReassignPromptProps) {
 // TypeBadge
 // ---------------------------------------------------------------------------
 
-interface TypeBadgeProps {
-  type: Category['type']
-}
-
-function TypeBadge({ type }: TypeBadgeProps) {
+function TypeBadge({ type }: { type: Category['type'] }) {
   const label = type === 'any' ? 'Both' : type
   const colorClass =
     type === 'income'
@@ -272,11 +348,7 @@ function TypeBadge({ type }: TypeBadgeProps) {
 // ColorDot
 // ---------------------------------------------------------------------------
 
-interface ColorDotProps {
-  color: string
-}
-
-function ColorDot({ color }: ColorDotProps) {
+function ColorDot({ color }: { color: string }) {
   return (
     <span
       className="block h-3 w-3 flex-shrink-0 rounded-full"
