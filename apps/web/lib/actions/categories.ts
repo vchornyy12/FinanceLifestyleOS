@@ -9,15 +9,16 @@ import { CategorySchema } from '@/lib/schemas/category'
 // ---------------------------------------------------------------------------
 
 export type CategoryActionState = {
-  fieldErrors?: { name?: string[]; color?: string[]; type?: string[] }
+  fieldErrors?: { name?: string[]; color?: string[]; type?: string[]; parent_id?: string[] }
   error?: string
   success?: boolean
   requiresReassignment?: boolean
   count?: number
+  subcategoryCount?: number
 } | null
 
 // ---------------------------------------------------------------------------
-// UUID regex for validation
+// UUID regex
 // ---------------------------------------------------------------------------
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -34,10 +35,12 @@ export async function createCategory(
   _prevState: CategoryActionState,
   formData: FormData,
 ): Promise<CategoryActionState> {
+  const parentIdRaw = formData.get('parent_id') as string | null
   const raw = {
     name: formData.get('name'),
     color: formData.get('color'),
     type: formData.get('type'),
+    parent_id: parentIdRaw || null,
   }
 
   const parsed = CategorySchema.safeParse(raw)
@@ -46,28 +49,32 @@ export async function createCategory(
   }
 
   const supabase = await createClient()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) return { error: 'Not authenticated.' }
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
+  const { name, color, type, parent_id } = parsed.data
 
-  if (userError || !user) {
-    return { error: 'Not authenticated.' }
+  // Nesting guard: parent must itself be a top-level category
+  if (parent_id) {
+    const { data: parent } = await supabase
+      .from('categories')
+      .select('parent_id')
+      .eq('id', parent_id)
+      .eq('user_id', user.id)
+      .single()
+    if (!parent) return { error: 'Parent category not found.' }
+    if (parent.parent_id !== null) return { error: 'Cannot nest deeper than one level.' }
   }
-
-  const { name, color, type } = parsed.data
 
   const { error } = await supabase.from('categories').insert({
     user_id: user.id,
     name,
     color,
     type,
+    parent_id: parent_id ?? null,
   })
 
-  if (error) {
-    return { error: `Failed to create category: ${error.message}` }
-  }
+  if (error) return { error: `Failed to create category: ${error.message}` }
 
   revalidatePath('/dashboard/settings/categories')
   return { success: true }
@@ -86,48 +93,47 @@ export async function updateCategory(
   formData: FormData,
 ): Promise<CategoryActionState> {
   const id = formData.get('id') as string | null
-  if (!id || !UUID_REGEX.test(id)) {
-    return { error: 'Invalid category ID.' }
-  }
+  if (!id || !UUID_REGEX.test(id)) return { error: 'Invalid category ID.' }
 
+  const parentIdRaw = formData.get('parent_id') as string | null
   const raw = {
     name: formData.get('name'),
     color: formData.get('color'),
     type: formData.get('type'),
+    parent_id: parentIdRaw || null,
   }
 
   const parsed = CategorySchema.safeParse(raw)
-  if (!parsed.success) {
-    return { fieldErrors: parsed.error.flatten().fieldErrors }
-  }
+  if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors }
 
   const supabase = await createClient()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) return { error: 'Not authenticated.' }
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
+  const { name, color, type, parent_id } = parsed.data
 
-  if (userError || !user) {
-    return { error: 'Not authenticated.' }
+  // Nesting guard
+  if (parent_id) {
+    if (parent_id === id) return { error: 'A category cannot be its own parent.' }
+    const { data: parent } = await supabase
+      .from('categories')
+      .select('parent_id')
+      .eq('id', parent_id)
+      .eq('user_id', user.id)
+      .single()
+    if (!parent) return { error: 'Parent category not found.' }
+    if (parent.parent_id !== null) return { error: 'Cannot nest deeper than one level.' }
   }
 
-  const { name, color, type } = parsed.data
-
-  // Explicit user_id filter as defence-in-depth over RLS.
   const { data: updated, error } = await supabase
     .from('categories')
-    .update({ name, color, type })
+    .update({ name, color, type, parent_id: parent_id ?? null })
     .eq('id', id)
     .eq('user_id', user.id)
     .select('id')
 
-  if (error) {
-    return { error: 'Failed to update category.' }
-  }
-  if (!updated || updated.length === 0) {
-    return { error: 'Category not found or permission denied.' }
-  }
+  if (error) return { error: 'Failed to update category.' }
+  if (!updated || updated.length === 0) return { error: 'Category not found or permission denied.' }
 
   revalidatePath('/dashboard/settings/categories')
   return { success: true }
@@ -142,87 +148,98 @@ export async function updateCategory(
  *
  * Flow:
  *  1. Verify authentication.
- *  2. Count transactions referencing this category.
- *  3. If count > 0 and no reassignToId provided → return { requiresReassignment: true, count }.
- *  4. If count > 0 and reassignToId provided → reassign those transactions first.
- *  5. Delete the category (RLS enforces ownership).
+ *  2. Collect subcategory IDs (children).
+ *  3. Count transactions on this category and its children.
+ *  4. If count > 0 and no reassignToId → return { requiresReassignment: true, count, subcategoryCount }.
+ *  5. If count > 0 and reassignToId → reassign all those transactions first.
+ *  6. Delete the category (CASCADE removes subcategories at DB level).
  */
 export async function deleteCategory(
   _prevState: CategoryActionState,
   formData: FormData,
 ): Promise<CategoryActionState> {
   const id = formData.get('id') as string | null
-  if (!id || !UUID_REGEX.test(id)) {
-    return { error: 'Invalid category ID.' }
-  }
+  if (!id || !UUID_REGEX.test(id)) return { error: 'Invalid category ID.' }
 
   const reassignToId = formData.get('reassignToId') as string | null
-
-  // Validate reassignToId if provided
-  if (reassignToId && !UUID_REGEX.test(reassignToId)) {
-    return { error: 'Invalid reassign target ID.' }
-  }
+  if (reassignToId && !UUID_REGEX.test(reassignToId)) return { error: 'Invalid reassign target ID.' }
 
   const supabase = await createClient()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) return { error: 'Not authenticated.' }
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
+  // Get subcategory IDs (children of this category)
+  const { data: subs } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('parent_id', id)
+    .eq('user_id', user.id)
+  const subIds = (subs ?? []).map((s) => s.id)
 
-  if (userError || !user) {
-    return { error: 'Not authenticated.' }
-  }
-
-  // Count transactions using this category
-  const { count, error: countError } = await supabase
+  // Count transactions on this category
+  const { count: directCount } = await supabase
     .from('transactions')
     .select('*', { count: 'exact', head: true })
     .eq('category_id', id)
+    .eq('user_id', user.id)
 
-  if (countError) {
-    return { error: `Failed to check transactions: ${countError.message}` }
+  // Count transactions on its subcategories
+  let subTxCount = 0
+  if (subIds.length > 0) {
+    const { count } = await supabase
+      .from('transactions')
+      .select('*', { count: 'exact', head: true })
+      .in('category_id', subIds)
+      .eq('user_id', user.id)
+    subTxCount = count ?? 0
   }
 
-  const txCount = count ?? 0
+  const totalTxCount = (directCount ?? 0) + subTxCount
 
-  // If in use and no reassignment target provided, ask the caller to reassign
-  if (txCount > 0 && !reassignToId) {
-    return { requiresReassignment: true, count: txCount }
+  if (totalTxCount > 0 && !reassignToId) {
+    return {
+      requiresReassignment: true,
+      count: totalTxCount,
+      subcategoryCount: subIds.length,
+    }
   }
 
-  // If in use and reassignment target provided, verify target ownership then reassign
-  if (txCount > 0 && reassignToId) {
-    // Verify reassignToId is a category the user may use (own or system default)
+  if (totalTxCount > 0 && reassignToId) {
+    // Verify target category belongs to this user
     const { count: targetCount } = await supabase
       .from('categories')
       .select('id', { count: 'exact', head: true })
       .eq('id', reassignToId)
-    if (!targetCount) {
-      return { error: 'Reassignment target category not found.' }
-    }
+      .eq('user_id', user.id)
+    if (!targetCount) return { error: 'Reassignment target category not found.' }
 
-    const { error: reassignError } = await supabase
+    // Reassign direct transactions
+    const { error: reassignDirect } = await supabase
       .from('transactions')
       .update({ category_id: reassignToId })
       .eq('category_id', id)
-      .eq('user_id', user.id) // scope to current user's transactions only
+      .eq('user_id', user.id)
+    if (reassignDirect) return { error: 'Failed to reassign transactions.' }
 
-    if (reassignError) {
-      return { error: 'Failed to reassign transactions.' }
+    // Reassign subcategory transactions
+    if (subIds.length > 0) {
+      const { error: reassignSubs } = await supabase
+        .from('transactions')
+        .update({ category_id: reassignToId })
+        .in('category_id', subIds)
+        .eq('user_id', user.id)
+      if (reassignSubs) return { error: 'Failed to reassign subcategory transactions.' }
     }
   }
 
-  // Delete the category (RLS enforces user_id = auth.uid())
+  // Delete the category — CASCADE removes subcategories at DB level
   const { error: deleteError } = await supabase
     .from('categories')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id) // explicit ownership filter
+    .eq('user_id', user.id)
 
-  if (deleteError) {
-    return { error: `Failed to delete category: ${deleteError.message}` }
-  }
+  if (deleteError) return { error: `Failed to delete category: ${deleteError.message}` }
 
   revalidatePath('/dashboard/settings/categories')
   return { success: true }
