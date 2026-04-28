@@ -142,3 +142,27 @@ export interface Database {
 export type Profile = ProfileRow
 export type Category = CategoryRow
 export type Transaction = TransactionRow
+
+// ---------------------------------------------------------------------------
+// Wallet types
+// ---------------------------------------------------------------------------
+
+export type WalletType = 'cash' | 'debit' | 'credit_card' | 'savings' | 'investment' | 'crypto'
+
+export interface WalletRow {
+  id: string
+  user_id: string
+  name: string
+  type: WalletType
+  currency: string
+  opening_balance: number
+  credit_limit: number | null
+  created_at: string
+  updated_at: string
+}
+
+export type WalletInsert = Omit<WalletRow, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+export type WalletUpdate = Partial<WalletInsert>
+export interface WalletWithBalance extends WalletRow {
+  balance: number
+}
