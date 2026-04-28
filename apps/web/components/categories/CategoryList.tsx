@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useActionState } from 'react'
+import { useState, useActionState } from 'react'
 import type { Category } from '@/types/database'
 import type { CategoryWithChildren } from '@/lib/supabase/queries/categories'
 import { deleteCategory, type CategoryActionState } from '@/lib/actions/categories'
@@ -14,11 +14,13 @@ export default function CategoryList({ tree }: CategoryListProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [showCreateFor, setShowCreateFor] = useState<'top-level' | string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
-
-  useEffect(() => {
+  // Track tree identity to reset editing state when data revalidates.
+  const [prevTree, setPrevTree] = useState(tree)
+  if (prevTree !== tree) {
+    setPrevTree(tree)
     setEditingId(null)
     setShowCreateFor(null)
-  }, [tree])
+  }
 
   function toggle(id: string) {
     setExpandedIds((prev) => {

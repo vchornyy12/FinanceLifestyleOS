@@ -51,6 +51,22 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(dashboardUrl)
   }
 
+  // Redirect authenticated users who haven't completed onboarding.
+  // Skip when already on /onboarding to prevent an infinite redirect loop.
+  if (user && pathname.startsWith('/dashboard') && !pathname.startsWith('/onboarding')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('onboarding_completed')
+      .eq('id', user.id)
+      .single()
+
+    if (profile && profile.onboarding_completed === false) {
+      const onboardingUrl = request.nextUrl.clone()
+      onboardingUrl.pathname = '/onboarding'
+      return NextResponse.redirect(onboardingUrl)
+    }
+  }
+
   return supabaseResponse
 }
 
