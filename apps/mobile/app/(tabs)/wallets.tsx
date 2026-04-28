@@ -155,7 +155,7 @@ export default function WalletsScreen() {
                     <Text style={styles.creditLabel}>Owed</Text>
                     <Text style={[styles.creditValue, styles.owedValue]}>
                       {wallet.balance !== null
-                        ? `${(wallet.credit_limit - wallet.balance).toFixed(2)} ${wallet.currency}`
+                        ? `${wallet.balance.toFixed(2)} ${wallet.currency}`
                         : '—'}
                     </Text>
                   </View>
@@ -169,7 +169,7 @@ export default function WalletsScreen() {
                     <Text style={styles.creditLabel}>Available</Text>
                     <Text style={[styles.creditValue, styles.availableValue]}>
                       {wallet.balance !== null
-                        ? `${wallet.balance.toFixed(2)} ${wallet.currency}`
+                        ? `${(wallet.credit_limit - wallet.balance).toFixed(2)} ${wallet.currency}`
                         : '—'}
                     </Text>
                   </View>
