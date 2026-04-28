@@ -69,6 +69,7 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
     if (loading) return
 
     const inAuthGroup = segments[0] === '(auth)'
+    const inOnboarding = segments[0] === '(onboarding)'
     const onBiometricSetup = (segments as string[])[1] === 'biometric-setup'
 
     if (!session && !inAuthGroup) {
@@ -93,6 +94,12 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
         await redirectAfterAuth()
       }
       checkBiometricSetup()
+    }
+
+    if (session && !inAuthGroup && !inOnboarding) {
+      // Authenticated and not in auth or onboarding groups:
+      // Check onboarding status on every app launch
+      redirectAfterAuth()
     }
 
   }, [session, loading, segments, router])
