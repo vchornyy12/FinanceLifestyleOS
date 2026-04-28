@@ -5,6 +5,7 @@ export default function TabsLayout() {
     <Tabs screenOptions={{ tabBarActiveTintColor: '#3b82f6' }}>
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
       <Tabs.Screen name="transactions" options={{ title: 'Transactions' }} />
+      <Tabs.Screen name="wallets" options={{ title: 'Wallets' }} />
       <Tabs.Screen name="settings" options={{ title: 'Settings' }} />
     </Tabs>
   )
