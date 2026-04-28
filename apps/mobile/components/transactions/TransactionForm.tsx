@@ -34,8 +34,6 @@ export interface TransactionFormData {
   categoryId: string | null
   date: string
   note: string
-  fromAccount: string | null
-  toAccount: string | null
   walletId: string | null
   fromWalletId: string | null
   toWalletId: string | null
@@ -61,14 +59,11 @@ export function TransactionForm({ onSave, saving }: Props) {
   const [date, setDate] = useState(new Date())
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [note, setNote] = useState('')
-  const [fromAccount, setFromAccount] = useState('')
-  const [toAccount, setToAccount] = useState('')
+  
   const [categoryModalVisible, setCategoryModalVisible] = useState(false)
   const [errors, setErrors] = useState<{
     amount?: string
     merchant?: string
-    fromAccount?: string
-    toAccount?: string
   }>({})
 
   // Wallet state
@@ -111,17 +106,7 @@ export function TransactionForm({ onSave, saving }: Props) {
     if (!amount || isNaN(parsed) || parsed <= 0) {
       newErrors.amount = 'Amount must be a positive number'
     }
-    if (isTransfer) {
-      if (!fromAccount.trim()) newErrors.fromAccount = 'From account is required'
-      if (!toAccount.trim()) newErrors.toAccount = 'To account is required'
-      if (
-        fromAccount.trim() &&
-        toAccount.trim() &&
-        fromAccount.trim().toLowerCase() === toAccount.trim().toLowerCase()
-      ) {
-        newErrors.toAccount = 'From and to accounts must differ'
-      }
-    } else if (!merchant.trim()) {
+    if (!isTransfer && !merchant.trim()) {
       newErrors.merchant = `${payeeLabel} is required`
     }
     setErrors(newErrors)
@@ -145,8 +130,6 @@ export function TransactionForm({ onSave, saving }: Props) {
       categoryId: isTransfer ? null : categoryId,
       date: getISODate(date),
       note: note.trim(),
-      fromAccount: isTransfer ? fromAccount.trim() : null,
-      toAccount: isTransfer ? toAccount.trim() : null,
       walletId: isTransfer ? null : walletId,
       fromWalletId: isTransfer ? fromWalletId : null,
       toWalletId: isTransfer ? toWalletId : null,
@@ -210,35 +193,7 @@ export function TransactionForm({ onSave, saving }: Props) {
         {errors.amount ? <Text style={styles.errorText}>{errors.amount}</Text> : null}
 
         {/* Merchant or Transfer endpoints */}
-        {isTransfer ? (
-          <>
-            <Text style={styles.label}>From account *</Text>
-            <TextInput
-              style={[styles.input, errors.fromAccount ? styles.inputError : null]}
-              value={fromAccount}
-              onChangeText={setFromAccount}
-              placeholder="e.g. Checking"
-              autoCapitalize="words"
-              returnKeyType="done"
-            />
-            {errors.fromAccount ? (
-              <Text style={styles.errorText}>{errors.fromAccount}</Text>
-            ) : null}
-
-            <Text style={styles.label}>To account *</Text>
-            <TextInput
-              style={[styles.input, errors.toAccount ? styles.inputError : null]}
-              value={toAccount}
-              onChangeText={setToAccount}
-              placeholder="e.g. Savings"
-              autoCapitalize="words"
-              returnKeyType="done"
-            />
-            {errors.toAccount ? (
-              <Text style={styles.errorText}>{errors.toAccount}</Text>
-            ) : null}
-          </>
-        ) : (
+        {!isTransfer && (
           <>
             <Text style={styles.label}>{payeeLabel} *</Text>
             <TextInput
@@ -291,7 +246,6 @@ export function TransactionForm({ onSave, saving }: Props) {
                 </Text>
               )}
             </TouchableOpacity>
-          </>
         )}
 
         {/* Wallet pickers for transfer */}
