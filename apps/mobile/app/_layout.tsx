@@ -6,6 +6,7 @@ import * as LocalAuthentication from 'expo-local-authentication'
 import * as SecureStore from 'expo-secure-store'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { BIOMETRIC_KEY, useBiometric } from '@/hooks/useBiometric'
+import { supabase } from '@/lib/supabase'
 
 const BACKGROUND_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
 
@@ -88,11 +89,36 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
             return
           }
         }
-        router.replace('/(tabs)')
+        // Check onboarding status before going to tabs
+        await redirectAfterAuth()
       }
       checkBiometricSetup()
     }
+
   }, [session, loading, segments, router])
+
+  async function redirectAfterAuth() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      router.replace('/(auth)/login')
+      return
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('onboarding_completed')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile?.onboarding_completed) {
+      router.replace('/(onboarding)')
+    } else {
+      router.replace('/(tabs)')
+    }
+  }
 
   if (biometricLocked) {
     // Render nothing while biometric prompt is shown
@@ -108,6 +134,7 @@ export default function RootLayout() {
       <NavigationGuard>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(onboarding)" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="(wallets)" options={{ headerShown: true }} />
         </Stack>
