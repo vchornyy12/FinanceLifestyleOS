@@ -127,7 +127,7 @@ function TransactionRow({ transaction, confirming, setConfirming }: TransactionR
 
   const description =
     transaction.type === 'transfer'
-      ? `${transaction.from_account ?? '?'} → ${transaction.to_account ?? '?'}`
+      ? `${transaction.from_wallet_id?.slice(-8) ?? '?'} → ${transaction.to_wallet_id?.slice(-8) ?? '?'}`
       : transaction.merchant
 
   return (
