@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { Category } from '@/types/database'
+import { getUserWalletsWithBalances } from '@/lib/supabase/queries/wallets'
 import TransactionForm from '@/components/transactions/TransactionForm'
 
 export const metadata = {
@@ -30,6 +31,9 @@ export default async function NewTransactionPage() {
 
   const categories: Category[] = data ?? []
 
+  // Fetch user wallets for the wallet selector
+  const wallets = await getUserWalletsWithBalances(supabase)
+
   return (
     <div className="flex flex-col gap-6">
       {/* Page header */}
@@ -44,7 +48,7 @@ export default async function NewTransactionPage() {
 
       {/* Form */}
       <div className="max-w-lg">
-        <TransactionForm categories={categories} />
+        <TransactionForm categories={categories} wallets={wallets} />
       </div>
     </div>
   )

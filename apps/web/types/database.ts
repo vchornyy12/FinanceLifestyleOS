@@ -48,8 +48,9 @@ export interface TransactionRow {
   note: string | null
   source: TransactionSource
   type: TransactionType
-  from_account: string | null
-  to_account: string | null
+  wallet_id: string | null
+  from_wallet_id: string | null
+  to_wallet_id: string | null
   receipt_url: string | null
   created_at: string
   updated_at: string
@@ -87,8 +88,9 @@ export interface TransactionInsert {
   note?: string | null
   source?: TransactionSource
   type: TransactionType
-  from_account?: string | null
-  to_account?: string | null
+  wallet_id?: string | null
+  from_wallet_id?: string | null
+  to_wallet_id?: string | null
   receipt_url?: string | null
   created_at?: string
   updated_at?: string

@@ -39,8 +39,9 @@ export type TransactionActionState = {
     category_id?: string[]
     date?: string[]
     note?: string[]
-    from_account?: string[]
-    to_account?: string[]
+    wallet_id?: string[]
+    from_wallet_id?: string[]
+    to_wallet_id?: string[]
   }
   error?: string
   success?: boolean
@@ -66,11 +67,14 @@ function extractInput(formData: FormData) {
     category_id: (formData.get('category_id') || null) as string | null,
     date: (formData.get('date') ?? '') as string,
     note: ((formData.get('note') ?? '') as string) || undefined,
-    from_account: isTransfer
-      ? (((formData.get('from_account') ?? '') as string) || null)
+    wallet_id: isTransfer
+      ? null
+      : (((formData.get('wallet_id') ?? '') as string) || null),
+    from_wallet_id: isTransfer
+      ? (((formData.get('from_wallet_id') ?? '') as string) || null)
       : null,
-    to_account: isTransfer
-      ? (((formData.get('to_account') ?? '') as string) || null)
+    to_wallet_id: isTransfer
+      ? (((formData.get('to_wallet_id') ?? '') as string) || null)
       : null,
   }
 }
@@ -104,7 +108,7 @@ export async function createTransaction(
     if (catErr) return { error: catErr }
   }
 
-  const { type, merchant, amount, category_id, date, note, from_account, to_account } =
+  const { type, merchant, amount, category_id, date, note, wallet_id, from_wallet_id, to_wallet_id } =
     parsed.data
 
   const { error } = await supabase.from('transactions').insert({
@@ -115,8 +119,9 @@ export async function createTransaction(
     category_id: category_id ?? null,
     date,
     note: note ?? null,
-    from_account: from_account ?? null,
-    to_account: to_account ?? null,
+    wallet_id: wallet_id ?? null,
+    from_wallet_id: from_wallet_id ?? null,
+    to_wallet_id: to_wallet_id ?? null,
   })
 
   if (error) {
@@ -161,7 +166,7 @@ export async function updateTransaction(
     if (catErr) return { error: catErr }
   }
 
-  const { type, merchant, amount, category_id, date, note, from_account, to_account } =
+  const { type, merchant, amount, category_id, date, note, wallet_id, from_wallet_id, to_wallet_id } =
     parsed.data
 
   const { data: updated, error } = await supabase
@@ -173,8 +178,9 @@ export async function updateTransaction(
       category_id: category_id ?? null,
       date,
       note: note ?? null,
-      from_account: from_account ?? null,
-      to_account: to_account ?? null,
+      wallet_id: wallet_id ?? null,
+      from_wallet_id: from_wallet_id ?? null,
+      to_wallet_id: to_wallet_id ?? null,
     })
     .eq('id', id)
     .eq('user_id', user.id) // defence-in-depth over RLS

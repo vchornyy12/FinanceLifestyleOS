@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest'
 import { TransactionSchema } from '@/lib/schemas/transaction'
 
 const VALID_UUID = '00000000-0000-4000-8000-000000000000'
+const VALID_UUID_2 = '11111111-1111-4111-8111-111111111111'
 
 const baseExpense = {
   type: 'expense' as const,
@@ -31,6 +32,11 @@ describe('TransactionSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  it('accepts a valid expense with wallet_id', () => {
+    const result = TransactionSchema.safeParse({ ...baseExpense, wallet_id: VALID_UUID })
+    expect(result.success).toBe(true)
+  })
+
   it('rejects amount = 0', () => {
     const result = TransactionSchema.safeParse({ ...baseExpense, amount: '0' })
     expect(result.success).toBe(false)
@@ -49,43 +55,43 @@ describe('TransactionSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('rejects transfer without from_account', () => {
+  it('rejects transfer without from_wallet_id', () => {
     const result = TransactionSchema.safeParse({
       ...baseExpense,
       type: 'transfer',
       merchant: 'Transfer',
-      to_account: 'Savings',
+      to_wallet_id: VALID_UUID,
     })
     expect(result.success).toBe(false)
     if (!result.success) {
-      expect(result.error.flatten().fieldErrors.from_account).toBeTruthy()
+      expect(result.error.flatten().fieldErrors.from_wallet_id).toBeTruthy()
     }
   })
 
-  it('rejects transfer without to_account', () => {
+  it('rejects transfer without to_wallet_id', () => {
     const result = TransactionSchema.safeParse({
       ...baseExpense,
       type: 'transfer',
       merchant: 'Transfer',
-      from_account: 'Checking',
+      from_wallet_id: VALID_UUID,
     })
     expect(result.success).toBe(false)
     if (!result.success) {
-      expect(result.error.flatten().fieldErrors.to_account).toBeTruthy()
+      expect(result.error.flatten().fieldErrors.to_wallet_id).toBeTruthy()
     }
   })
 
-  it('rejects transfer where from_account equals to_account', () => {
+  it('rejects transfer where from_wallet_id equals to_wallet_id', () => {
     const result = TransactionSchema.safeParse({
       ...baseExpense,
       type: 'transfer',
       merchant: 'Transfer',
-      from_account: 'Checking',
-      to_account: 'checking',
+      from_wallet_id: VALID_UUID,
+      to_wallet_id: VALID_UUID,
     })
     expect(result.success).toBe(false)
     if (!result.success) {
-      expect(result.error.flatten().fieldErrors.to_account).toBeTruthy()
+      expect(result.error.flatten().fieldErrors.to_wallet_id).toBeTruthy()
     }
   })
 
@@ -94,29 +100,10 @@ describe('TransactionSchema', () => {
       ...baseExpense,
       type: 'transfer',
       merchant: 'Transfer',
-      from_account: 'Checking',
-      to_account: 'Savings',
+      from_wallet_id: VALID_UUID,
+      to_wallet_id: VALID_UUID_2,
       category_id: null,
     })
     expect(result.success).toBe(true)
-  })
-
-  it('rejects expense with from_account set', () => {
-    const result = TransactionSchema.safeParse({
-      ...baseExpense,
-      from_account: 'Checking',
-    })
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(result.error.flatten().fieldErrors.from_account).toBeTruthy()
-    }
-  })
-
-  it('rejects expense with to_account set', () => {
-    const result = TransactionSchema.safeParse({
-      ...baseExpense,
-      to_account: 'Savings',
-    })
-    expect(result.success).toBe(false)
   })
 })

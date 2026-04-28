@@ -13,50 +13,24 @@ const baseShape = {
   category_id: z.string().uuid().nullable().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date'),
   note: z.string().max(500).optional(),
-  from_account: z.string().trim().min(1).max(100).nullable().optional(),
-  to_account: z.string().trim().min(1).max(100).nullable().optional(),
+  wallet_id: z.string().uuid().nullable().optional(),
+  from_wallet_id: z.string().uuid().nullable().optional(),
+  to_wallet_id: z.string().uuid().nullable().optional(),
 }
 
 export const TransactionSchema = z.object(baseShape).superRefine((data, ctx) => {
   if (data.type === 'transfer') {
-    if (!data.from_account) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['from_account'],
-        message: 'Required for transfers',
-      })
+    if (!data.from_wallet_id) {
+      ctx.addIssue({ code: 'custom', path: ['from_wallet_id'], message: 'Required for transfer' })
     }
-    if (!data.to_account) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['to_account'],
-        message: 'Required for transfers',
-      })
+    if (!data.to_wallet_id) {
+      ctx.addIssue({ code: 'custom', path: ['to_wallet_id'], message: 'Required for transfer' })
     }
-    if (
-      data.from_account &&
-      data.to_account &&
-      data.from_account.trim().toLowerCase() === data.to_account.trim().toLowerCase()
-    ) {
+    if (data.from_wallet_id && data.to_wallet_id && data.from_wallet_id === data.to_wallet_id) {
       ctx.addIssue({
         code: 'custom',
-        path: ['to_account'],
-        message: 'From and to accounts must differ',
-      })
-    }
-  } else {
-    if (data.from_account) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['from_account'],
-        message: 'Only allowed on transfers',
-      })
-    }
-    if (data.to_account) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['to_account'],
-        message: 'Only allowed on transfers',
+        path: ['to_wallet_id'],
+        message: 'Must differ from source wallet',
       })
     }
   }

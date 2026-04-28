@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Category, TransactionType } from '@/types/database'
+import type { Category, TransactionType, WalletWithBalance } from '@/types/database'
 import type { TransactionWithCategory } from '@/lib/supabase/queries/transactions'
 import {
   createTransaction,
@@ -11,11 +11,25 @@ import {
 } from '@/lib/actions/transactions'
 
 // ---------------------------------------------------------------------------
+// Icon map (mirrors WalletCard)
+// ---------------------------------------------------------------------------
+
+const WALLET_ICON: Record<string, string> = {
+  cash: '💵',
+  debit: '🏦',
+  credit_card: '💳',
+  savings: '🏧',
+  investment: '📈',
+  crypto: '₿',
+}
+
+// ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 interface TransactionFormProps {
   categories: Category[]
+  wallets: WalletWithBalance[]
   /** When provided the form operates in edit mode; omit for create mode. */
   transaction?: TransactionWithCategory
 }
@@ -30,7 +44,7 @@ const TYPE_OPTIONS: Array<{ value: TransactionType; label: string }> = [
 // Component
 // ---------------------------------------------------------------------------
 
-export default function TransactionForm({ categories, transaction }: TransactionFormProps) {
+export default function TransactionForm({ categories, wallets, transaction }: TransactionFormProps) {
   const router = useRouter()
   const isEdit = transaction !== undefined
 
@@ -56,8 +70,9 @@ export default function TransactionForm({ categories, transaction }: Transaction
   const defaultCategoryId = transaction?.category_id ?? ''
   const defaultDate = transaction?.date ?? today
   const defaultNote = transaction?.note ?? ''
-  const defaultFromAccount = transaction?.from_account ?? ''
-  const defaultToAccount = transaction?.to_account ?? ''
+  const defaultWalletId = transaction?.wallet_id ?? ''
+  const defaultFromWalletId = transaction?.from_wallet_id ?? ''
+  const defaultToWalletId = transaction?.to_wallet_id ?? ''
 
   const isTransfer = type === 'transfer'
   const filteredCategories = isTransfer
@@ -77,6 +92,9 @@ export default function TransactionForm({ categories, transaction }: Transaction
   })()
   const payeeLabel = type === 'income' ? 'Source' : 'Merchant'
   const payeePlaceholder = type === 'income' ? 'e.g. Employer' : 'e.g. Biedronka'
+
+  const selectClassName =
+    'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-400 dark:focus:ring-zinc-400'
 
   return (
     <form
@@ -153,27 +171,62 @@ export default function TransactionForm({ categories, transaction }: Transaction
         </div>
       )}
 
-      {/* Transfer endpoints */}
+      {/* Wallet selector (expense / income only) */}
+      {!isTransfer && (
+        <div>
+          <label
+            htmlFor="wallet_id"
+            className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+          >
+            Wallet <span className="text-zinc-400">(optional)</span>
+          </label>
+          <select
+            key={type}
+            id="wallet_id"
+            name="wallet_id"
+            defaultValue={defaultWalletId}
+            className={selectClassName}
+          >
+            <option value="">No wallet</option>
+            {wallets.map((w) => (
+              <option key={w.id} value={w.id}>
+                {WALLET_ICON[w.type] ?? ''} {w.name}
+              </option>
+            ))}
+          </select>
+          {state?.fieldErrors?.wallet_id?.map((msg) => (
+            <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
+              {msg}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {/* Transfer wallet selectors */}
       {isTransfer && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label
-              htmlFor="from_account"
+              htmlFor="from_wallet_id"
               className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
             >
-              From account <span className="text-red-500">*</span>
+              From wallet <span className="text-red-500">*</span>
             </label>
-            <input
-              id="from_account"
-              name="from_account"
-              type="text"
+            <select
+              id="from_wallet_id"
+              name="from_wallet_id"
               required
-              defaultValue={defaultFromAccount}
-              maxLength={100}
-              placeholder="e.g. Checking"
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
-            />
-            {state?.fieldErrors?.from_account?.map((msg) => (
+              defaultValue={defaultFromWalletId}
+              className={selectClassName}
+            >
+              <option value="">Select wallet</option>
+              {wallets.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {WALLET_ICON[w.type] ?? ''} {w.name}
+                </option>
+              ))}
+            </select>
+            {state?.fieldErrors?.from_wallet_id?.map((msg) => (
               <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
                 {msg}
               </p>
@@ -181,22 +234,26 @@ export default function TransactionForm({ categories, transaction }: Transaction
           </div>
           <div>
             <label
-              htmlFor="to_account"
+              htmlFor="to_wallet_id"
               className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
             >
-              To account <span className="text-red-500">*</span>
+              To wallet <span className="text-red-500">*</span>
             </label>
-            <input
-              id="to_account"
-              name="to_account"
-              type="text"
+            <select
+              id="to_wallet_id"
+              name="to_wallet_id"
               required
-              defaultValue={defaultToAccount}
-              maxLength={100}
-              placeholder="e.g. Savings"
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
-            />
-            {state?.fieldErrors?.to_account?.map((msg) => (
+              defaultValue={defaultToWalletId}
+              className={selectClassName}
+            >
+              <option value="">Select wallet</option>
+              {wallets.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {WALLET_ICON[w.type] ?? ''} {w.name}
+                </option>
+              ))}
+            </select>
+            {state?.fieldErrors?.to_wallet_id?.map((msg) => (
               <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
                 {msg}
               </p>
@@ -245,7 +302,7 @@ export default function TransactionForm({ categories, transaction }: Transaction
             id="category_id"
             name="category_id"
             defaultValue={defaultCategoryId}
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+            className={selectClassName}
           >
             <option value="">No category</option>
             {categoryTree.map(({ parent, children }) =>
