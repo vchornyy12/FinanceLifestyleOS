@@ -34,6 +34,27 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    label: 'Wallets',
+    href: '/dashboard/wallets',
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.75}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-5 w-5"
+        aria-hidden="true"
+      >
+        <path d="M20 12V8a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4z" />
+        <circle cx="17" cy="12" r="1" fill="currentColor" stroke="none" />
+        <path d="M20 12h2" />
+      </svg>
+    ),
+  },
+  {
     label: 'Transactions',
     href: '/dashboard/transactions',
     icon: (
