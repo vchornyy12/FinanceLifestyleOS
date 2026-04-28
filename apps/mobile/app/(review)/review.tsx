@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { View, Text, FlatList, TouchableOpacity, Alert } from 'react-native'
+import { useEffect, useState } from 'react'
+import { View, Text, FlatList, TouchableOpacity, Alert, Modal, StyleSheet } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { ParsedReceipt, ReviewItem } from '@/types/receipt'
 import ReceiptItemRow from '@/components/receipt/ReceiptItem'
@@ -8,6 +8,17 @@ import { saveReceipt } from '@/lib/actions/saveReceipt'
 import { useAuth } from '@/context/AuthContext'
 import { useCategories } from '@/hooks/useCategories'
 import { parseOcrReceipt } from '@/lib/ocr/receiptSchema'
+import { supabase } from '@/lib/supabase'
+
+interface WalletOption {
+  id: string
+  name: string
+  type: string
+}
+
+const WALLET_ICONS: Record<string, string> = {
+  cash: '💵', debit: '🏦', credit_card: '💳', savings: '🏧', investment: '📈', crypto: '₿',
+}
 
 function parseReceiptParam(raw: string | string[] | undefined): ParsedReceipt | null {
   const str = Array.isArray(raw) ? raw[0] : raw
@@ -42,6 +53,19 @@ export default function ReviewScreen() {
   })
   const [showAddModal, setShowAddModal] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  // Wallet state
+  const [wallets, setWallets] = useState<WalletOption[]>([])
+  const [walletId, setWalletId] = useState<string | null>(null)
+  const [walletModalVisible, setWalletModalVisible] = useState(false)
+
+  useEffect(() => {
+    supabase
+      .from('wallets')
+      .select('id, name, type')
+      .order('created_at')
+      .then(({ data }) => setWallets(data ?? []))
+  }, [])
 
   const total = roundAmount(items.reduce((sum, item) => sum + item.total_price, 0))
 
@@ -87,7 +111,7 @@ export default function ReviewScreen() {
     }
     setSaving(true)
     try {
-      await saveReceipt(items, parsed, resolvedPath, categories)
+      await saveReceipt(items, parsed, resolvedPath, categories, walletId)
       Alert.alert('Saved', 'Receipt saved!', [
         { text: 'OK', onPress: () => router.replace('/(tabs)') },
       ])
@@ -132,8 +156,24 @@ export default function ReviewScreen() {
         }
       />
 
-      {/* Footer: total + save button */}
+      {/* Footer: wallet picker + total + save button */}
       <View className="px-4 py-4 border-t border-zinc-200 dark:border-zinc-800">
+        {/* Wallet picker */}
+        <Text className="text-xs font-semibold text-zinc-500 mb-1">Wallet (optional)</Text>
+        <TouchableOpacity
+          onPress={() => setWalletModalVisible(true)}
+          className="border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 mb-3 bg-white dark:bg-zinc-900"
+        >
+          <Text className="text-zinc-800 dark:text-zinc-100">
+            {walletId
+              ? (() => {
+                  const w = wallets.find((x) => x.id === walletId)
+                  return w ? `${WALLET_ICONS[w.type] ?? '🏦'} ${w.name}` : 'None'
+                })()
+              : 'None'}
+          </Text>
+        </TouchableOpacity>
+
         <View className="flex-row justify-between mb-3">
           <Text className="font-semibold dark:text-white">Total</Text>
           <Text className="font-semibold dark:text-white">{total.toFixed(2)} PLN</Text>
@@ -148,6 +188,50 @@ export default function ReviewScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Wallet Modal */}
+      <Modal
+        visible={walletModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setWalletModalVisible(false)}
+      >
+        <View style={reviewStyles.modalOverlay}>
+          <View style={reviewStyles.modalContent}>
+            <View style={reviewStyles.modalHeader}>
+              <Text style={reviewStyles.modalTitle}>Select Wallet</Text>
+              <TouchableOpacity onPress={() => setWalletModalVisible(false)}>
+                <Text style={reviewStyles.modalClose}>Done</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={[reviewStyles.walletItem, walletId === null ? reviewStyles.walletItemSelected : null]}
+              onPress={() => { setWalletId(null); setWalletModalVisible(false) }}
+            >
+              <Text style={[reviewStyles.walletItemText, walletId === null ? reviewStyles.walletItemTextSelected : null]}>
+                None
+              </Text>
+            </TouchableOpacity>
+
+            <FlatList
+              data={wallets}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[reviewStyles.walletItem, walletId === item.id ? reviewStyles.walletItemSelected : null]}
+                  onPress={() => { setWalletId(item.id); setWalletModalVisible(false) }}
+                >
+                  <Text style={[reviewStyles.walletItemText, walletId === item.id ? reviewStyles.walletItemTextSelected : null]}>
+                    {WALLET_ICONS[item.type] ?? '🏦'} {item.name}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={<Text style={reviewStyles.emptyText}>No wallets found</Text>}
+            />
+          </View>
+        </View>
+      </Modal>
+
       <AddItemModal
         visible={showAddModal}
         categories={categories}
@@ -157,3 +241,58 @@ export default function ReviewScreen() {
     </View>
   )
 }
+
+const reviewStyles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    maxHeight: '70%',
+    paddingBottom: 34,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  modalClose: {
+    fontSize: 16,
+    color: '#3b82f6',
+    fontWeight: '600',
+  },
+  walletItem: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e5e7eb',
+  },
+  walletItemSelected: {
+    backgroundColor: '#eff6ff',
+  },
+  walletItemText: {
+    fontSize: 16,
+    color: '#111827',
+  },
+  walletItemTextSelected: {
+    color: '#3b82f6',
+    fontWeight: '600',
+  },
+  emptyText: {
+    padding: 20,
+    textAlign: 'center',
+    color: '#6b7280',
+  },
+})

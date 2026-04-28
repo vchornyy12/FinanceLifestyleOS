@@ -25,6 +25,9 @@ export default function NewTransactionScreen() {
         source: 'manual',
         from_account: data.fromAccount,
         to_account: data.toAccount,
+        wallet_id: data.walletId,
+        from_wallet_id: data.fromWalletId,
+        to_wallet_id: data.toWalletId,
       })
 
       if (error) {

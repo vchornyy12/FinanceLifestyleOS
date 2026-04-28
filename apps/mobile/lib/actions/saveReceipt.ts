@@ -11,6 +11,7 @@ export async function saveReceipt(
   receipt: ParsedReceipt,
   storagePath: string,
   categories: Category[],
+  walletId: string | null = null,
 ): Promise<void> {
   const { data: { user }, error: userError } = await supabase.auth.getUser()
   if (userError || !user) {
@@ -30,6 +31,7 @@ export async function saveReceipt(
     date: receipt.date,
     source: 'ocr' as const,
     receipt_url: storagePath,
+    wallet_id: walletId,
   }))
 
   const { error } = await supabase.from('transactions').insert(transactions)

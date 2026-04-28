@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -14,7 +14,18 @@ import {
 } from 'react-native'
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useCategories } from '@/hooks/useCategories'
+import { supabase } from '@/lib/supabase'
 import type { TransactionType } from '@/types/database'
+
+interface WalletOption {
+  id: string
+  name: string
+  type: string
+}
+
+const WALLET_ICONS: Record<string, string> = {
+  cash: '💵', debit: '🏦', credit_card: '💳', savings: '🏧', investment: '📈', crypto: '₿',
+}
 
 export interface TransactionFormData {
   type: TransactionType
@@ -25,6 +36,9 @@ export interface TransactionFormData {
   note: string
   fromAccount: string | null
   toAccount: string | null
+  walletId: string | null
+  fromWalletId: string | null
+  toWalletId: string | null
 }
 
 interface Props {
@@ -56,6 +70,26 @@ export function TransactionForm({ onSave, saving }: Props) {
     fromAccount?: string
     toAccount?: string
   }>({})
+
+  // Wallet state
+  const [wallets, setWallets] = useState<WalletOption[]>([])
+  const [walletsLoading, setWalletsLoading] = useState(false)
+  const [walletId, setWalletId] = useState<string | null>(null)
+  const [fromWalletId, setFromWalletId] = useState<string | null>(null)
+  const [toWalletId, setToWalletId] = useState<string | null>(null)
+  const [walletModalTarget, setWalletModalTarget] = useState<'single' | 'from' | 'to' | null>(null)
+
+  useEffect(() => {
+    setWalletsLoading(true)
+    supabase
+      .from('wallets')
+      .select('id, name, type')
+      .order('created_at')
+      .then(({ data }) => {
+        setWallets(data ?? [])
+        setWalletsLoading(false)
+      })
+  }, [])
 
   const isTransfer = type === 'transfer'
 
@@ -97,6 +131,9 @@ export function TransactionForm({ onSave, saving }: Props) {
   function handleTypeChange(newType: TransactionType) {
     setType(newType)
     setCategoryId(null)
+    setWalletId(null)
+    setFromWalletId(null)
+    setToWalletId(null)
   }
 
   async function handleSave() {
@@ -110,6 +147,9 @@ export function TransactionForm({ onSave, saving }: Props) {
       note: note.trim(),
       fromAccount: isTransfer ? fromAccount.trim() : null,
       toAccount: isTransfer ? toAccount.trim() : null,
+      walletId: isTransfer ? null : walletId,
+      fromWalletId: isTransfer ? fromWalletId : null,
+      toWalletId: isTransfer ? toWalletId : null,
     })
   }
 
@@ -227,6 +267,72 @@ export function TransactionForm({ onSave, saving }: Props) {
                   style={selectedCategory ? styles.pickerText : styles.pickerPlaceholder}
                 >
                   {selectedCategory ? selectedCategory.name : 'Select a category'}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Wallet (optional, for expense/income) */}
+            <Text style={styles.label}>Wallet (optional)</Text>
+            <TouchableOpacity
+              style={styles.input}
+              onPress={() => setWalletModalTarget('single')}
+              activeOpacity={0.7}
+            >
+              {walletsLoading ? (
+                <ActivityIndicator size="small" color="#3b82f6" />
+              ) : (
+                <Text style={walletId ? styles.pickerText : styles.pickerPlaceholder}>
+                  {walletId
+                    ? (() => {
+                        const w = wallets.find((x) => x.id === walletId)
+                        return w ? `${WALLET_ICONS[w.type] ?? '🏦'} ${w.name}` : 'Select a wallet'
+                      })()
+                    : 'None'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* Wallet pickers for transfer */}
+        {isTransfer && (
+          <>
+            <Text style={styles.label}>From wallet (optional)</Text>
+            <TouchableOpacity
+              style={styles.input}
+              onPress={() => setWalletModalTarget('from')}
+              activeOpacity={0.7}
+            >
+              {walletsLoading ? (
+                <ActivityIndicator size="small" color="#3b82f6" />
+              ) : (
+                <Text style={fromWalletId ? styles.pickerText : styles.pickerPlaceholder}>
+                  {fromWalletId
+                    ? (() => {
+                        const w = wallets.find((x) => x.id === fromWalletId)
+                        return w ? `${WALLET_ICONS[w.type] ?? '🏦'} ${w.name}` : 'Select a wallet'
+                      })()
+                    : 'None'}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <Text style={styles.label}>To wallet (optional)</Text>
+            <TouchableOpacity
+              style={styles.input}
+              onPress={() => setWalletModalTarget('to')}
+              activeOpacity={0.7}
+            >
+              {walletsLoading ? (
+                <ActivityIndicator size="small" color="#3b82f6" />
+              ) : (
+                <Text style={toWalletId ? styles.pickerText : styles.pickerPlaceholder}>
+                  {toWalletId
+                    ? (() => {
+                        const w = wallets.find((x) => x.id === toWalletId)
+                        return w ? `${WALLET_ICONS[w.type] ?? '🏦'} ${w.name}` : 'Select a wallet'
+                      })()
+                    : 'None'}
                 </Text>
               )}
             </TouchableOpacity>
@@ -365,6 +471,104 @@ export function TransactionForm({ onSave, saving }: Props) {
                   </TouchableOpacity>
                 )}
                 ListEmptyComponent={<Text style={styles.emptyText}>No categories found</Text>}
+              />
+            </View>
+          </View>
+        </Modal>
+        {/* Wallet Modal */}
+        <Modal
+          visible={walletModalTarget !== null}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setWalletModalTarget(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {walletModalTarget === 'from'
+                    ? 'From Wallet'
+                    : walletModalTarget === 'to'
+                    ? 'To Wallet'
+                    : 'Select Wallet'}
+                </Text>
+                <TouchableOpacity onPress={() => setWalletModalTarget(null)}>
+                  <Text style={styles.modalClose}>Done</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* None option */}
+              <TouchableOpacity
+                style={[
+                  styles.categoryItem,
+                  (() => {
+                    const current =
+                      walletModalTarget === 'from'
+                        ? fromWalletId
+                        : walletModalTarget === 'to'
+                        ? toWalletId
+                        : walletId
+                    return current === null ? styles.categoryItemSelected : null
+                  })(),
+                ]}
+                onPress={() => {
+                  if (walletModalTarget === 'from') setFromWalletId(null)
+                  else if (walletModalTarget === 'to') setToWalletId(null)
+                  else setWalletId(null)
+                  setWalletModalTarget(null)
+                }}
+              >
+                <Text
+                  style={[
+                    styles.categoryItemText,
+                    (() => {
+                      const current =
+                        walletModalTarget === 'from'
+                          ? fromWalletId
+                          : walletModalTarget === 'to'
+                          ? toWalletId
+                          : walletId
+                      return current === null ? styles.categoryItemTextSelected : null
+                    })(),
+                  ]}
+                >
+                  None
+                </Text>
+              </TouchableOpacity>
+
+              <FlatList
+                data={wallets}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => {
+                  const current =
+                    walletModalTarget === 'from'
+                      ? fromWalletId
+                      : walletModalTarget === 'to'
+                      ? toWalletId
+                      : walletId
+                  const isSelected = current === item.id
+                  return (
+                    <TouchableOpacity
+                      style={[styles.categoryItem, isSelected ? styles.categoryItemSelected : null]}
+                      onPress={() => {
+                        if (walletModalTarget === 'from') setFromWalletId(item.id)
+                        else if (walletModalTarget === 'to') setToWalletId(item.id)
+                        else setWalletId(item.id)
+                        setWalletModalTarget(null)
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryItemText,
+                          isSelected ? styles.categoryItemTextSelected : null,
+                        ]}
+                      >
+                        {WALLET_ICONS[item.type] ?? '🏦'} {item.name}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                }}
+                ListEmptyComponent={<Text style={styles.emptyText}>No wallets found</Text>}
               />
             </View>
           </View>
