@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getMonthlyMetrics, getAllTimeNet } from '@/lib/supabase/queries/metrics'
+import { getMonthlyMetrics } from '@/lib/supabase/queries/metrics'
 import { getUserWalletsWithBalances } from '@/lib/supabase/queries/wallets'
+import { fetchRatesFromEUR, convertToPLN } from '@/lib/currency'
 
 const PLN = new Intl.NumberFormat('pl-PL', {
   style: 'currency',
@@ -43,11 +44,23 @@ export default async function DashboardPage() {
   }
 
   const yearMonth = currentYearMonth()
-  const [metrics, allTimeNet, wallets] = await Promise.all([
+  const [metrics, wallets, { rates: ratesFromEUR, date: ratesDate }] = await Promise.all([
     getMonthlyMetrics(yearMonth),
-    getAllTimeNet(),
     getUserWalletsWithBalances(supabase),
+    fetchRatesFromEUR(),
   ])
+
+  // Sum all wallet balances converted to PLN.
+  // Credit card balances represent money owed (liability), so subtract them.
+  const walletTotalPLN = wallets.reduce((sum, w) => {
+    const balancePLN = convertToPLN(w.balance, w.currency, ratesFromEUR)
+    return w.type === 'credit_card' ? sum - balancePLN : sum + balancePLN
+  }, 0)
+
+  const hasMultiCurrency = wallets.some((w) => w.currency !== 'PLN')
+  const totalBalanceHint = hasMultiCurrency && ratesDate
+    ? `Wallets converted to PLN · rates ${ratesDate}`
+    : 'Sum of all wallet balances'
 
   const savingsRate =
     metrics.income > 0 ? `${(((metrics.income - metrics.expense) / metrics.income) * 100).toFixed(0)}%` : '—'
@@ -60,9 +73,9 @@ export default async function DashboardPage() {
   }> = [
     {
       label: 'Total Balance',
-      value: PLN.format(allTimeNet),
-      tone: allTimeNet >= 0 ? 'positive' : 'negative',
-      hint: 'All-time income − expense',
+      value: PLN.format(walletTotalPLN),
+      tone: walletTotalPLN >= 0 ? 'positive' : 'negative',
+      hint: totalBalanceHint,
     },
     {
       label: 'Monthly Income',
