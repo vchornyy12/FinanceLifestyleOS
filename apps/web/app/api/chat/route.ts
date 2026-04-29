@@ -8,10 +8,11 @@ import { buildSystemPrompt } from '@/lib/chat/systemPrompt'
 let _openai: OpenAI | null = null
 function getOpenAI(): OpenAI {
   if (!_openai) {
-    _openai = new OpenAI({
-      apiKey: process.env.NVIDIA_API_KEY!,
-      baseURL: process.env.NVIDIA_BASE_URL!,
-    })
+    const key = process.env.NVIDIA_API_KEY
+    const base = process.env.NVIDIA_BASE_URL
+    if (!key) throw new Error('Missing env var: NVIDIA_API_KEY')
+    if (!base) throw new Error('Missing env var: NVIDIA_BASE_URL')
+    _openai = new OpenAI({ apiKey: key, baseURL: base })
   }
   return _openai
 }
@@ -19,6 +20,11 @@ function getOpenAI(): OpenAI {
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
 function checkRateLimit(userId: string): boolean {
   const now = Date.now()
+  // Prune one stale entry per call to bound map size
+  for (const [id, entry] of rateLimitMap) {
+    if (now > entry.resetAt) { rateLimitMap.delete(id) }
+    break
+  }
   const entry = rateLimitMap.get(userId)
   if (!entry || now > entry.resetAt) {
     rateLimitMap.set(userId, { count: 1, resetAt: now + 3_600_000 })
@@ -55,6 +61,7 @@ export async function POST(req: NextRequest) {
     const { data: history } = await supabase
       .from('chat_messages')
       .select('role, content')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(20)
     const orderedHistory = (history ?? []).reverse()
@@ -67,6 +74,7 @@ export async function POST(req: NextRequest) {
       supabase
         .from('transactions')
         .select('date, merchant, type, amount, category:categories(name)')
+        .eq('user_id', user.id)
         .order('date', { ascending: false })
         .limit(50),
     ])
@@ -76,7 +84,11 @@ export async function POST(req: NextRequest) {
       merchant: t.merchant,
       type: t.type as 'expense' | 'income' | 'transfer',
       amount: t.amount as unknown as string,
-      category: (t.category as unknown as { name: string } | null)?.name ?? null,
+      category: (() => {
+        const cat = t.category as unknown as { name: string } | { name: string }[] | null
+        if (!cat) return null
+        return Array.isArray(cat) ? (cat[0]?.name ?? null) : cat.name
+      })(),
     }))
 
     const systemPrompt = buildSystemPrompt({
@@ -87,8 +99,10 @@ export async function POST(req: NextRequest) {
       transactions,
     })
 
+    const model = process.env.NVIDIA_MODEL
+    if (!model) throw new Error('Missing env var: NVIDIA_MODEL')
     const stream = await getOpenAI().chat.completions.create({
-      model: process.env.NVIDIA_MODEL!,
+      model,
       stream: true,
       max_tokens: 1024,
       messages: [
@@ -111,13 +125,17 @@ export async function POST(req: NextRequest) {
               controller.enqueue(encoder.encode(text))
             }
           }
-        } finally {
           controller.close()
-          // Persist both messages after stream completes
-          await supabase.from('chat_messages').insert([
-            { user_id: user.id, role: 'user', content: message },
-            { user_id: user.id, role: 'assistant', content: assistantReply },
-          ])
+        } catch (err) {
+          controller.error(err)
+        } finally {
+          if (assistantReply) {
+            // Persist both messages after stream completes
+            await supabase.from('chat_messages').insert([
+              { user_id: user.id, role: 'user', content: message },
+              { user_id: user.id, role: 'assistant', content: assistantReply },
+            ])
+          }
         }
       },
     })
