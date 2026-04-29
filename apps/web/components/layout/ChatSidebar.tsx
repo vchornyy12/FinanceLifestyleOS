@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
 
 interface Message {
   id: string
@@ -16,13 +16,6 @@ const STARTER_PROMPTS = [
   'Give me a spending breakdown by category',
 ]
 
-function getBrowserSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  )
-}
-
 export default function ChatSidebar() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -31,9 +24,10 @@ export default function ChatSidebar() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    const supabase = getBrowserSupabase()
+    const supabase = createClient()
     supabase
       .from('chat_messages')
       .select('id, role, content')
@@ -43,6 +37,12 @@ export default function ChatSidebar() {
         setMessages((data ?? []) as Message[])
         setLoading(false)
       })
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+    }
   }, [])
 
   useEffect(() => {
@@ -60,11 +60,15 @@ export default function ChatSidebar() {
       { id: crypto.randomUUID(), role: 'user', content: trimmed },
     ])
 
+    const controller = new AbortController()
+    abortRef.current = controller
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: trimmed }),
+        signal: controller.signal,
       })
 
       if (res.status === 429) {
@@ -85,6 +89,10 @@ export default function ChatSidebar() {
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
+        if (controller.signal.aborted) {
+          await reader.cancel()
+          break
+        }
         const chunk = decoder.decode(value, { stream: true })
         full += chunk
         setStreamingContent(full)
