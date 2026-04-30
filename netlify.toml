@@ -14,5 +14,10 @@
 
 # Locally installed v5 takes precedence over Netlify's auto-managed version.
 # Required for monorepo: auto-detection alone doesn't reliably activate OpenNext.
+[functions]
+  # Default is 10 s. LLM APIs need more headroom; 26 s is Netlify's max for
+  # regular (non-background) functions.
+  timeout = 26
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
