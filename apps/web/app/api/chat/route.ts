@@ -107,7 +107,6 @@ export async function POST(req: NextRequest) {
       max_tokens: 16384,
       temperature: 0.7,
       top_p: 1,
-      reasoning_effort: 'high',
       messages: [
         { role: 'system', content: systemPrompt },
         ...orderedHistory,
@@ -147,7 +146,9 @@ export async function POST(req: NextRequest) {
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     })
   } catch (err) {
-    console.error('[chat] error', err)
+    const status = (err as { status?: number }).status
+    const body = (err as { error?: unknown }).error
+    console.error('[chat] error', { status, body, err })
     return new Response(JSON.stringify({ error: 'INTERNAL_ERROR' }), { status: 500 })
   }
 }
