@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/layout/Sidebar'
 import TopBar from '@/components/layout/TopBar'
+import ChatSidebar from '@/components/layout/ChatSidebar'
 
 export default async function DashboardLayout({
   children,
@@ -23,9 +24,12 @@ export default async function DashboardLayout({
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar user={user} />
-        <main className="flex-1 overflow-y-auto p-6">
-          {children}
-        </main>
+        <div className="flex flex-1 overflow-hidden">
+          <main className="flex-1 overflow-y-auto p-6">
+            {children}
+          </main>
+          <ChatSidebar />
+        </div>
       </div>
     </div>
   )
