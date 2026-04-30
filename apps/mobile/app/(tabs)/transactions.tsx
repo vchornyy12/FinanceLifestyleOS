@@ -52,7 +52,7 @@ function TransactionItem({ item }: { item: TransactionRow }) {
   const pres = typePresentation(item.type)
   const description =
     item.type === 'transfer'
-      ? `${item.from_account ?? '?'} → ${item.to_account ?? '?'}`
+      ? `${item.from_wallet_id?.slice(-6) ?? '?'} → ${item.to_wallet_id?.slice(-6) ?? '?'}`
       : item.merchant
   const formattedAmount = `${pres.symbol}${item.amount.toFixed(2)} PLN`
 

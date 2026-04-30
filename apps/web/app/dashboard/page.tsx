@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getMonthlyMetrics } from '@/lib/supabase/queries/metrics'
 import { getUserWalletsWithBalances } from '@/lib/supabase/queries/wallets'
+import { getTopProducts } from '@/lib/supabase/queries/receiptItems'
 import { fetchRatesFromEUR, convertToPLN } from '@/lib/currency'
 
 const PLN = new Intl.NumberFormat('pl-PL', {
@@ -44,10 +45,11 @@ export default async function DashboardPage() {
   }
 
   const yearMonth = currentYearMonth()
-  const [metrics, wallets, { rates: ratesFromEUR, date: ratesDate }] = await Promise.all([
+  const [metrics, wallets, { rates: ratesFromEUR, date: ratesDate }, topProducts] = await Promise.all([
     getMonthlyMetrics(yearMonth),
     getUserWalletsWithBalances(supabase),
     fetchRatesFromEUR(),
+    getTopProducts(yearMonth),
   ])
 
   // Sum all wallet balances converted to PLN.
@@ -194,6 +196,39 @@ export default async function DashboardPage() {
           </div>
         </section>
       )}
+
+      {/* Top Products This Month */}
+      <section>
+        <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          Top Products This Month
+        </h2>
+        {topProducts.length === 0 ? (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            No receipt data yet. Scan a receipt on mobile to see product-level spending.
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              {topProducts.map((product, i) => (
+                <li key={product.name} className="flex items-center gap-4 px-4 py-3">
+                  <span className="w-5 text-right text-xs font-semibold text-zinc-400 dark:text-zinc-500">
+                    {i + 1}
+                  </span>
+                  <span className="flex-1 truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    {product.name}
+                  </span>
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                    ×{product.count}
+                  </span>
+                  <span className="text-sm font-semibold text-red-600 dark:text-red-400">
+                    {PLN.format(product.total)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

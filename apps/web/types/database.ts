@@ -147,6 +147,39 @@ export type Category = CategoryRow
 export type Transaction = TransactionRow
 
 // ---------------------------------------------------------------------------
+// ReceiptItem types (migration 012)
+// ---------------------------------------------------------------------------
+
+export type ReceiptItemConfidence = 'high' | 'low'
+
+export interface ReceiptItemRow {
+  id: string
+  transaction_id: string
+  user_id: string
+  name: string
+  quantity: number
+  unit_price: number
+  total_price: number
+  category_id: string | null
+  confidence: ReceiptItemConfidence
+  created_at: string
+}
+
+export interface ReceiptItemInsert {
+  id?: string
+  transaction_id: string
+  user_id: string
+  name: string
+  quantity?: number
+  unit_price: number
+  total_price: number
+  category_id?: string | null
+  confidence?: ReceiptItemConfidence
+}
+
+export type ReceiptItemUpdate = Partial<Omit<ReceiptItemRow, 'id' | 'transaction_id' | 'user_id' | 'created_at'>>
+
+// ---------------------------------------------------------------------------
 // Wallet types
 // ---------------------------------------------------------------------------
 

@@ -246,6 +246,7 @@ export function TransactionForm({ onSave, saving }: Props) {
                 </Text>
               )}
             </TouchableOpacity>
+          </>
         )}
 
         {/* Wallet pickers for transfer */}

@@ -104,7 +104,10 @@ export async function POST(req: NextRequest) {
     const stream = await getOpenAI().chat.completions.create({
       model,
       stream: true,
-      max_tokens: 1024,
+      max_tokens: 16384,
+      temperature: 0.7,
+      top_p: 1,
+      reasoning_effort: 'high',
       messages: [
         { role: 'system', content: systemPrompt },
         ...orderedHistory,

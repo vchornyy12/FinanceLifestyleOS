@@ -19,8 +19,9 @@ export interface TransactionRow {
   note: string | null
   source: TransactionSource
   type: TransactionType
-  from_account: string | null
-  to_account: string | null
+  wallet_id: string | null
+  from_wallet_id: string | null
+  to_wallet_id: string | null
   receipt_url: string | null
   created_at: string
   updated_at: string
@@ -34,6 +35,33 @@ export interface CategoryRow {
   type: CategoryType
   parent_id: string | null
   created_at: string
+}
+
+export type ReceiptItemConfidence = 'high' | 'low'
+
+export interface ReceiptItemRow {
+  id: string
+  transaction_id: string
+  user_id: string
+  name: string
+  quantity: number
+  unit_price: number
+  total_price: number
+  category_id: string | null
+  confidence: ReceiptItemConfidence
+  created_at: string
+}
+
+export interface ReceiptItemInsert {
+  id?: string
+  transaction_id: string
+  user_id: string
+  name: string
+  quantity?: number
+  unit_price: number
+  total_price: number
+  category_id?: string | null
+  confidence?: ReceiptItemConfidence
 }
 
 export type Transaction = TransactionRow
