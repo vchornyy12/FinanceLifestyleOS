@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Alert } from 'react-native'
 import { router } from 'expo-router'
-import { compressImage, uploadReceiptImage, parseReceipt } from '@/lib/receiptUpload'
+import { compressImage, uploadReceiptImage, parseReceipt, uploadReceiptFile } from '@/lib/receiptUpload'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 
@@ -52,5 +52,46 @@ export function useReceiptPipeline() {
     }
   }
 
-  return { run, processing }
+  async function runFromFile(uri: string, mimeType: string): Promise<void> {
+    if (!user) return
+    setProcessing(true)
+    try {
+      const storagePath = await uploadReceiptFile(uri, mimeType, user.id)
+      const session = await supabase.auth.getSession()
+      const accessToken = session.data.session?.access_token
+      if (!accessToken) throw new Error('NOT_AUTHENTICATED')
+      const data = await parseReceipt(storagePath, accessToken)
+
+      const lowConfCount = data.items.filter(i => i.confidence === 'low').length
+      if (data.items.length > 0 && lowConfCount / data.items.length > 0.5) {
+        await new Promise<void>((resolve) => {
+          Alert.alert(
+            'Receipt may be unclear',
+            'More than half of the items have low confidence. Review carefully.',
+            [{ text: 'Continue', onPress: () => resolve() }],
+          )
+        })
+      }
+
+      router.push({
+        pathname: '/(review)/review',
+        params: { receiptJson: JSON.stringify(data), storagePath },
+      })
+    } catch (err) {
+      const code = err instanceof Error ? err.message : 'PARSE_FAILED'
+      const messages: Record<string, string> = {
+        UNAUTHENTICATED: 'Session expired. Please sign in again.',
+        RATE_LIMITED: 'Too many requests. Please try again later.',
+        TIMEOUT: 'Receipt parsing timed out. Please try again.',
+        NOT_AUTHENTICATED: 'Session expired. Please sign in again.',
+        FILE_TOO_LARGE: 'File is too large to process.',
+        UNSUPPORTED_FILE_TYPE: 'This file type is not supported.',
+      }
+      Alert.alert('Error', messages[code] ?? 'Failed to process receipt. Please try again.')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  return { run, runFromFile, processing }
 }
