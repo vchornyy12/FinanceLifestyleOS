@@ -25,6 +25,7 @@ Rules:
 - Ignore VAT summary blocks at the bottom
 - Polish abbreviations: "szt." = pieces, "kg" = kg, "op." = package
 - If the image is not a receipt or is completely illegible, return { "error": "NO_ITEMS_FOUND" }
+- If input is CSV, the first row may be a header — skip it and parse data rows as items
 `
 
 export const buildReceiptUserMessage = (imageBase64: string, mimeType: string) => ({
@@ -40,4 +41,24 @@ export const buildReceiptUserMessage = (imageBase64: string, mimeType: string) =
     },
     { type: 'text' as const, text: 'Parse this receipt and return JSON only.' },
   ],
+})
+
+export const buildReceiptDocumentMessage = (pdfBase64: string) => ({
+  role: 'user' as const,
+  content: [
+    {
+      type: 'document' as const,
+      source: {
+        type: 'base64' as const,
+        media_type: 'application/pdf' as const,
+        data: pdfBase64,
+      },
+    },
+    { type: 'text' as const, text: 'Parse this receipt and return JSON only.' },
+  ],
+})
+
+export const buildReceiptTextMessage = (text: string) => ({
+  role: 'user' as const,
+  content: [{ type: 'text' as const, text: `Parse this receipt and return JSON only.\n\n${text}` }],
 })

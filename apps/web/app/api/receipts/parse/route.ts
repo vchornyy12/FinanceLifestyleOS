@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
-import { RECEIPT_SYSTEM_PROMPT, buildReceiptUserMessage } from '@/lib/ocr/parseReceiptPrompt'
+import {
+  RECEIPT_SYSTEM_PROMPT,
+  buildReceiptUserMessage,
+  buildReceiptDocumentMessage,
+  buildReceiptTextMessage,
+} from '@/lib/ocr/parseReceiptPrompt'
 import { ParsedReceiptSchema } from '@/lib/ocr/receiptSchema'
 
 // Lazy singletons — initialized on first request, not at module evaluation time.
@@ -39,10 +44,24 @@ function getSupabaseAdmin(): ReturnType<typeof createClient> {
 // Module-level map — resets on cold start, sufficient for cost control
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
 
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
-type AllowedMimeType = typeof ALLOWED_MIME_TYPES[number]
+const PDF_LIMIT = 20 * 1024 * 1024
+const TEXT_LIMIT = 1 * 1024 * 1024
 
-function isAllowedMimeType(t: string): t is AllowedMimeType {
+const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+type ImageMimeType = typeof IMAGE_MIME_TYPES[number]
+
+const ALLOWED_MIME_TYPES = [
+  ...IMAGE_MIME_TYPES,
+  'application/pdf',
+  'text/plain',
+  'text/csv',
+] as const
+
+function isImageMime(t: string): t is ImageMimeType {
+  return (IMAGE_MIME_TYPES as readonly string[]).includes(t)
+}
+
+function isAllowedMimeType(t: string): boolean {
   return (ALLOWED_MIME_TYPES as readonly string[]).includes(t)
 }
 
@@ -121,9 +140,32 @@ export async function POST(req: NextRequest) {
       signal: AbortSignal.timeout(25_000),
     })
     const imageBuffer = await imageRes.arrayBuffer()
-    const imageBase64 = Buffer.from(imageBuffer).toString('base64')
     const rawMime = (imageRes.headers.get('content-type') ?? '').split(';')[0].trim()
-    const mimeType: AllowedMimeType = isAllowedMimeType(rawMime) ? rawMime : 'image/jpeg'
+    const mimeType = rawMime
+
+    if (!isAllowedMimeType(mimeType)) {
+      console.error('[ocr] unsupported_mime: %s', mimeType)
+      return NextResponse.json({ error: 'UNSUPPORTED_FILE_TYPE' }, { status: 400 })
+    }
+
+    if (mimeType === 'application/pdf' && imageBuffer.byteLength > PDF_LIMIT) {
+      return NextResponse.json({ error: 'FILE_TOO_LARGE' }, { status: 413 })
+    }
+    if ((mimeType === 'text/plain' || mimeType === 'text/csv') && imageBuffer.byteLength > TEXT_LIMIT) {
+      return NextResponse.json({ error: 'FILE_TOO_LARGE' }, { status: 413 })
+    }
+
+    let userMessage
+    if (isImageMime(mimeType)) {
+      const imageBase64 = Buffer.from(imageBuffer).toString('base64')
+      userMessage = buildReceiptUserMessage(imageBase64, mimeType)
+    } else if (mimeType === 'application/pdf') {
+      const pdfBase64 = Buffer.from(imageBuffer).toString('base64')
+      userMessage = buildReceiptDocumentMessage(pdfBase64)
+    } else {
+      const text = Buffer.from(imageBuffer).toString('utf-8')
+      userMessage = buildReceiptTextMessage(text)
+    }
 
     // Claude vision call
     // Known risk: malicious receipt images could attempt prompt injection via
@@ -136,7 +178,7 @@ export async function POST(req: NextRequest) {
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 2048,
         system: RECEIPT_SYSTEM_PROMPT,
-        messages: [buildReceiptUserMessage(imageBase64, mimeType)],
+        messages: [userMessage],
       })
     } catch (anthropicErr) {
       console.error('[ocr] anthropic_error:', anthropicErr instanceof Error ? anthropicErr.message : anthropicErr)

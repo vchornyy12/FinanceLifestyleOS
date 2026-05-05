@@ -56,6 +56,28 @@ export async function uploadReceiptImage(uri: string, userId: string): Promise<s
   return storagePath
 }
 
+const FILE_EXT: Record<string, string> = {
+  'application/pdf': 'pdf',
+  'text/plain': 'txt',
+  'text/csv': 'csv',
+}
+
+export async function uploadReceiptFile(
+  uri: string,
+  mimeType: string,
+  userId: string,
+): Promise<string> {
+  const response = await fetch(uri)
+  const blob = await response.blob()
+  const ext = FILE_EXT[mimeType] ?? 'bin'
+  const storagePath = `${userId}/${crypto.randomUUID()}.${ext}`
+  const { error } = await supabase.storage
+    .from('receipts')
+    .upload(storagePath, blob, { contentType: mimeType })
+  if (error) throw new Error(`Upload failed: ${error.message}`)
+  return storagePath
+}
+
 /**
  * Call the OCR API route with the storage path.
  * Returns a ParsedReceipt or throws with the error code from the response body.

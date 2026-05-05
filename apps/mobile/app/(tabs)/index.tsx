@@ -9,11 +9,13 @@ import {
   ScrollView,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import * as DocumentPicker from 'expo-document-picker'
 import { useAuth } from '@/context/AuthContext'
 import { useMonthlyMetrics } from '@/hooks/useMonthlyMetrics'
+import { useReceiptPipeline } from '@/hooks/useReceiptPipeline'
 
-const ACTION_OPTIONS = ['Take Photo', 'Upload from Gallery', 'Upload Receipt Screenshot', 'Cancel']
-const CANCEL_INDEX = 3
+const ACTION_OPTIONS = ['Take Photo', 'Upload from Gallery', 'Upload Receipt Screenshot', 'Upload File (PDF, TXT, CSV)', 'Cancel']
+const CANCEL_INDEX = 4
 
 function currentYearMonth(): string {
   const now = new Date()
@@ -28,6 +30,20 @@ export default function HomeScreen() {
   const router = useRouter()
   const { user } = useAuth()
   const { metrics, loading } = useMonthlyMetrics(user?.id ?? '', currentYearMonth())
+  const pipeline = useReceiptPipeline()
+
+  const handleFilePick = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/pdf', 'text/plain', 'text/csv'],
+    })
+    if (result.canceled) return
+    const asset = result.assets[0]
+    const mimeType = asset.mimeType ?? (
+      asset.name.endsWith('.pdf') ? 'application/pdf' :
+      asset.name.endsWith('.csv') ? 'text/csv' : 'text/plain'
+    )
+    pipeline.runFromFile(asset.uri, mimeType)
+  }
 
   const savingsRate =
     metrics.income > 0
@@ -42,6 +58,7 @@ export default function HomeScreen() {
           if (buttonIndex === 0) router.push('/(camera)/capture?mode=camera')
           else if (buttonIndex === 1) router.push('/(camera)/capture?mode=gallery')
           else if (buttonIndex === 2) router.push('/(camera)/capture?mode=screenshot')
+          else if (buttonIndex === 3) handleFilePick()
         },
       )
     } else {
@@ -49,7 +66,8 @@ export default function HomeScreen() {
         { text: ACTION_OPTIONS[0], onPress: () => router.push('/(camera)/capture?mode=camera') },
         { text: ACTION_OPTIONS[1], onPress: () => router.push('/(camera)/capture?mode=gallery') },
         { text: ACTION_OPTIONS[2], onPress: () => router.push('/(camera)/capture?mode=screenshot') },
-        { text: ACTION_OPTIONS[3], style: 'cancel' },
+        { text: ACTION_OPTIONS[3], onPress: handleFilePick },
+        { text: ACTION_OPTIONS[4], style: 'cancel' },
       ])
     }
   }
