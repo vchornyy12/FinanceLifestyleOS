@@ -185,8 +185,9 @@ export async function POST(req: NextRequest) {
         messages: [userMessage],
       }, requestOptions)
     } catch (anthropicErr) {
-      console.error('[ocr] anthropic_error:', anthropicErr instanceof Error ? anthropicErr.message : anthropicErr)
-      return NextResponse.json({ error: 'PARSE_FAILED' }, { status: 500 })
+      const detail = anthropicErr instanceof Error ? anthropicErr.message : String(anthropicErr)
+      console.error('[ocr] anthropic_error:', detail)
+      return NextResponse.json({ error: 'PARSE_FAILED', detail }, { status: 500 })
     }
 
     const rawText = message.content[0].type === 'text' ? message.content[0].text : ''
@@ -197,7 +198,7 @@ export async function POST(req: NextRequest) {
       parsed = JSON.parse(rawText)
     } catch {
       console.error('[ocr] parse_error: Claude response was not valid JSON (first 200 chars): %s', rawText.slice(0, 200))
-      return NextResponse.json({ error: 'PARSE_FAILED' }, { status: 500 })
+      return NextResponse.json({ error: 'PARSE_FAILED', detail: `non-JSON response: ${rawText.slice(0, 300)}` }, { status: 500 })
     }
 
     // Handle Claude returning error object
@@ -208,7 +209,7 @@ export async function POST(req: NextRequest) {
     const validationResult = ParsedReceiptSchema.safeParse(parsed)
     if (!validationResult.success) {
       console.error('[ocr] schema_error: Claude response failed schema validation', validationResult.error.flatten())
-      return NextResponse.json({ error: 'PARSE_FAILED' }, { status: 500 })
+      return NextResponse.json({ error: 'PARSE_FAILED', detail: JSON.stringify(validationResult.error.flatten()) }, { status: 500 })
     }
     const receipt = validationResult.data
 
