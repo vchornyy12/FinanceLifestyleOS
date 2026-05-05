@@ -174,12 +174,16 @@ export async function POST(req: NextRequest) {
     // is rejected at the schema layer.
     let message
     try {
+      // PDF documents require the pdfs-2024-09-25 beta header
+      const requestOptions = mimeType === 'application/pdf'
+        ? { headers: { 'anthropic-beta': 'pdfs-2024-09-25' } }
+        : undefined
       message = await getAnthropic().messages.create({
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 2048,
         system: RECEIPT_SYSTEM_PROMPT,
         messages: [userMessage],
-      })
+      }, requestOptions)
     } catch (anthropicErr) {
       console.error('[ocr] anthropic_error:', anthropicErr instanceof Error ? anthropicErr.message : anthropicErr)
       return NextResponse.json({ error: 'PARSE_FAILED' }, { status: 500 })
