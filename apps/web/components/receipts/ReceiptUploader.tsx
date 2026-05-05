@@ -66,8 +66,9 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
 
   const processFile = useCallback(
     async (file: File) => {
-      if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
-        setError('Please upload a JPEG, PNG, or WebP image.')
+      const ACCEPTED_MIME = /^(image\/(jpeg|png|webp)|application\/pdf|text\/(plain|csv))$/
+      if (!ACCEPTED_MIME.test(file.type)) {
+        setError('Please upload a JPEG, PNG, WebP, PDF, TXT, or CSV file.')
         return
       }
 
@@ -86,12 +87,14 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
           return
         }
 
-        const ext =
-          file.type === 'image/png'
-            ? 'png'
-            : file.type === 'image/webp'
-              ? 'webp'
-              : 'jpg'
+        const EXT_MAP: Record<string, string> = {
+          'image/png': 'png',
+          'image/webp': 'webp',
+          'application/pdf': 'pdf',
+          'text/plain': 'txt',
+          'text/csv': 'csv',
+        }
+        const ext = EXT_MAP[file.type] ?? 'jpg'
         const path = `${session.user.id}/${crypto.randomUUID()}.${ext}`
 
         const { error: uploadError } = await supabase.storage
@@ -118,7 +121,11 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
           const msg =
             body.error === 'NO_ITEMS_FOUND'
               ? 'No items found on this receipt. Try a clearer photo.'
-              : `OCR failed (${body.error ?? parseRes.status}). Please try again.`
+              : body.error === 'UNSUPPORTED_FILE_TYPE'
+                ? "This file type isn't supported. Upload a JPEG, PNG, WebP, PDF, TXT, or CSV."
+                : body.error === 'FILE_TOO_LARGE'
+                  ? 'File is too large. PDFs must be under 20 MB, text files under 1 MB.'
+                  : `OCR failed (${body.error ?? parseRes.status}). Please try again.`
           setError(msg)
           setPhase('idle')
           return
@@ -292,7 +299,7 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
                   Click to upload or drag &amp; drop
                 </p>
                 <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                  JPEG, PNG or WebP
+                  JPEG, PNG, WebP, PDF, TXT or CSV
                 </p>
               </div>
             </>
@@ -301,7 +308,7 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
           <input
             ref={inputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,application/pdf,.pdf,text/plain,.txt,text/csv,.csv"
             className="sr-only"
             onChange={handleFileChange}
             tabIndex={-1}
