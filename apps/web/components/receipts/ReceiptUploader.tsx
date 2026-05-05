@@ -55,6 +55,14 @@ const PLN = new Intl.NumberFormat('pl-PL', {
   maximumFractionDigits: 2,
 })
 
+const EXT_MAP: Record<string, string> = {
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'application/pdf': 'pdf',
+  'text/plain': 'txt',
+  'text/csv': 'csv',
+}
+
 export default function ReceiptUploader({ wallets, categories, onSave }: Props) {
   const router = useRouter()
   const [phase, setPhase] = useState<Phase>('idle')
@@ -87,13 +95,6 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
           return
         }
 
-        const EXT_MAP: Record<string, string> = {
-          'image/png': 'png',
-          'image/webp': 'webp',
-          'application/pdf': 'pdf',
-          'text/plain': 'txt',
-          'text/csv': 'csv',
-        }
         const ext = EXT_MAP[file.type] ?? 'jpg'
         const path = `${session.user.id}/${crypto.randomUUID()}.${ext}`
 
