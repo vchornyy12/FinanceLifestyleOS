@@ -44,6 +44,9 @@ function getSupabaseAdmin(): ReturnType<typeof createClient> {
 // Module-level map — resets on cold start, sufficient for cost control
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
 
+const PDF_LIMIT = 20 * 1024 * 1024
+const TEXT_LIMIT = 1 * 1024 * 1024
+
 const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 type ImageMimeType = typeof IMAGE_MIME_TYPES[number]
 
@@ -145,8 +148,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'UNSUPPORTED_FILE_TYPE' }, { status: 400 })
     }
 
-    const PDF_LIMIT = 20 * 1024 * 1024
-    const TEXT_LIMIT = 1 * 1024 * 1024
     if (mimeType === 'application/pdf' && imageBuffer.byteLength > PDF_LIMIT) {
       return NextResponse.json({ error: 'FILE_TOO_LARGE' }, { status: 413 })
     }
