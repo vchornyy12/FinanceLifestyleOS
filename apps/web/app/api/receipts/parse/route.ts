@@ -188,10 +188,13 @@ export async function POST(req: NextRequest) {
 
     const rawText = message.content[0].type === 'text' ? message.content[0].text : ''
 
+    // Strip markdown code fences that some model versions emit despite the prompt
+    const jsonText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
+
     // Parse and validate response
     let parsed: unknown
     try {
-      parsed = JSON.parse(rawText)
+      parsed = JSON.parse(jsonText)
     } catch {
       console.error('[ocr] parse_error: Claude response was not valid JSON (first 200 chars): %s', rawText.slice(0, 200))
       return NextResponse.json({ error: 'PARSE_FAILED', detail: `non-JSON response: ${rawText.slice(0, 300)}` }, { status: 500 })
