@@ -293,6 +293,155 @@ describe('POST /api/receipts/parse', () => {
   })
 
   // -------------------------------------------------------------------------
+  // File type and size validation
+  // -------------------------------------------------------------------------
+
+  describe('file type and size validation', () => {
+    it('returns 400 UNSUPPORTED_FILE_TYPE for .docx', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: { id: VALID_USER_ID } }, error: null })
+      mockCreateSignedUrl.mockResolvedValue({
+        data: { signedUrl: 'https://storage.example.com/signed' },
+        error: null,
+      })
+      mockFetch.mockResolvedValue({
+        ok: true,
+        arrayBuffer: async () => Buffer.from('fake-docx-data'),
+        headers: { get: () => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+      })
+
+      const req = makeRequest({
+        authHeader: `Bearer ${VALID_TOKEN}`,
+        body: { storagePath: `${VALID_USER_ID}/receipt.docx` },
+      })
+      const res = await POST(req as never)
+      expect(res.status).toBe(400)
+      expect((await res.json()).error).toBe('UNSUPPORTED_FILE_TYPE')
+    })
+
+    it('returns 413 FILE_TOO_LARGE for PDF over 20 MB', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: { id: VALID_USER_ID } }, error: null })
+      mockCreateSignedUrl.mockResolvedValue({
+        data: { signedUrl: 'https://storage.example.com/signed' },
+        error: null,
+      })
+      const oversizedBuffer = Buffer.alloc(21 * 1024 * 1024) // 21 MB
+      mockFetch.mockResolvedValue({
+        ok: true,
+        arrayBuffer: async () => oversizedBuffer,
+        headers: { get: () => 'application/pdf' },
+      })
+
+      const req = makeRequest({
+        authHeader: `Bearer ${VALID_TOKEN}`,
+        body: { storagePath: `${VALID_USER_ID}/receipt.pdf` },
+      })
+      const res = await POST(req as never)
+      expect(res.status).toBe(413)
+      expect((await res.json()).error).toBe('FILE_TOO_LARGE')
+    })
+
+    it('returns 413 FILE_TOO_LARGE for TXT over 1 MB', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: { id: VALID_USER_ID } }, error: null })
+      mockCreateSignedUrl.mockResolvedValue({
+        data: { signedUrl: 'https://storage.example.com/signed' },
+        error: null,
+      })
+      const oversizedBuffer = Buffer.alloc(2 * 1024 * 1024) // 2 MB
+      mockFetch.mockResolvedValue({
+        ok: true,
+        arrayBuffer: async () => oversizedBuffer,
+        headers: { get: () => 'text/plain' },
+      })
+
+      const req = makeRequest({
+        authHeader: `Bearer ${VALID_TOKEN}`,
+        body: { storagePath: `${VALID_USER_ID}/receipt.txt` },
+      })
+      const res = await POST(req as never)
+      expect(res.status).toBe(413)
+      expect((await res.json()).error).toBe('FILE_TOO_LARGE')
+    })
+
+    it('parses PDF receipt successfully', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: { id: VALID_USER_ID } }, error: null })
+      mockCreateSignedUrl.mockResolvedValue({
+        data: { signedUrl: 'https://storage.example.com/signed' },
+        error: null,
+      })
+      mockFetch.mockResolvedValue({
+        ok: true,
+        arrayBuffer: async () => Buffer.from('fake-pdf-data'),
+        headers: { get: () => 'application/pdf' },
+      })
+      mockMessagesCreate.mockResolvedValue({
+        content: [{ type: 'text', text: JSON.stringify(VALID_PARSED_RECEIPT) }],
+      })
+
+      const req = makeRequest({
+        authHeader: `Bearer ${VALID_TOKEN}`,
+        body: { storagePath: `${VALID_USER_ID}/receipt.pdf` },
+      })
+      const res = await POST(req as never)
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.store).toBe('Biedronka')
+      expect(Array.isArray(body.items)).toBe(true)
+    })
+
+    it('parses TXT receipt successfully', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: { id: VALID_USER_ID } }, error: null })
+      mockCreateSignedUrl.mockResolvedValue({
+        data: { signedUrl: 'https://storage.example.com/signed' },
+        error: null,
+      })
+      mockFetch.mockResolvedValue({
+        ok: true,
+        arrayBuffer: async () => Buffer.from('Biedronka\nChleb 3.49'),
+        headers: { get: () => 'text/plain' },
+      })
+      mockMessagesCreate.mockResolvedValue({
+        content: [{ type: 'text', text: JSON.stringify(VALID_PARSED_RECEIPT) }],
+      })
+
+      const req = makeRequest({
+        authHeader: `Bearer ${VALID_TOKEN}`,
+        body: { storagePath: `${VALID_USER_ID}/receipt.txt` },
+      })
+      const res = await POST(req as never)
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.store).toBe('Biedronka')
+      expect(Array.isArray(body.items)).toBe(true)
+    })
+
+    it('parses CSV receipt successfully', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: { id: VALID_USER_ID } }, error: null })
+      mockCreateSignedUrl.mockResolvedValue({
+        data: { signedUrl: 'https://storage.example.com/signed' },
+        error: null,
+      })
+      mockFetch.mockResolvedValue({
+        ok: true,
+        arrayBuffer: async () => Buffer.from('name,qty,price\nChleb,1,3.49'),
+        headers: { get: () => 'text/csv' },
+      })
+      mockMessagesCreate.mockResolvedValue({
+        content: [{ type: 'text', text: JSON.stringify(VALID_PARSED_RECEIPT) }],
+      })
+
+      const req = makeRequest({
+        authHeader: `Bearer ${VALID_TOKEN}`,
+        body: { storagePath: `${VALID_USER_ID}/receipt.csv` },
+      })
+      const res = await POST(req as never)
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.store).toBe('Biedronka')
+      expect(Array.isArray(body.items)).toBe(true)
+    })
+  })
+
+  // -------------------------------------------------------------------------
   // Storage / upstream errors
   // -------------------------------------------------------------------------
 
