@@ -1,0 +1,87 @@
+<h2>Design: API Route & Prompt Changes</h2>
+<p class="subtitle">Section 2 of 4 — route.ts and parseReceiptPrompt.ts</p>
+
+<div class="section">
+  <h3>route.ts — what changes</h3>
+  <div style="font-size:0.85em;line-height:1.8">
+    <div style="background:var(--surface-2);border-radius:8px;padding:1rem;margin-bottom:0.75rem">
+      <div style="font-weight:600;margin-bottom:6px">1. Expand ALLOWED_MIME_TYPES</div>
+      <div style="font-family:monospace;color:var(--text-secondary)">
+        image/jpeg, image/png, image/webp<br>
+        <span style="color:#16a34a">+ application/pdf</span><br>
+        <span style="color:#16a34a">+ text/plain</span><br>
+        <span style="color:#16a34a">+ text/csv</span>
+      </div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:1rem;margin-bottom:0.75rem">
+      <div style="font-weight:600;margin-bottom:6px">2. Size guard after file fetch</div>
+      <div style="font-family:monospace;color:var(--text-secondary)">
+        if pdf &amp;&amp; buffer > 20 MB → 413 FILE_TOO_LARGE<br>
+        if text &amp;&amp; buffer > 1 MB &nbsp;→ 413 FILE_TOO_LARGE
+      </div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:1rem;margin-bottom:0.75rem">
+      <div style="font-weight:600;margin-bottom:6px">3. Branch on MIME type before Claude call</div>
+      <div style="font-family:monospace;color:var(--text-secondary)">
+        image/* &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ buildReceiptUserMessage(base64, mime) &nbsp;← existing<br>
+        application/pdf → buildReceiptDocumentMessage(base64) &nbsp;&nbsp;&nbsp;&nbsp;← new<br>
+        text/* &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ buildReceiptTextMessage(utf8text) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← new
+      </div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:1rem">
+      <div style="font-weight:600;margin-bottom:6px">4. MIME validation tightened</div>
+      <div style="color:var(--text-secondary)">
+        Currently, an unrecognised MIME silently falls back to image/jpeg.
+        New behaviour: reject with <span style="font-family:monospace">UNSUPPORTED_FILE_TYPE</span> (400) instead.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>parseReceiptPrompt.ts — two new builders</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;font-size:0.84em">
+    <div style="background:var(--surface-2);border-radius:8px;padding:0.85rem">
+      <div style="font-weight:600;margin-bottom:6px">buildReceiptDocumentMessage(pdfBase64)</div>
+      <div style="font-family:monospace;color:var(--text-secondary);font-size:0.9em;line-height:1.6">
+        content: [<br>
+        &nbsp;{<br>
+        &nbsp;&nbsp;type: 'document',<br>
+        &nbsp;&nbsp;source: {<br>
+        &nbsp;&nbsp;&nbsp;type: 'base64',<br>
+        &nbsp;&nbsp;&nbsp;media_type: 'application/pdf',<br>
+        &nbsp;&nbsp;&nbsp;data: pdfBase64<br>
+        &nbsp;&nbsp;}<br>
+        &nbsp;},<br>
+        &nbsp;{ type: 'text', text: 'Parse this receipt...' }<br>
+        ]
+      </div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:0.85rem">
+      <div style="font-weight:600;margin-bottom:6px">buildReceiptTextMessage(text)</div>
+      <div style="font-family:monospace;color:var(--text-secondary);font-size:0.9em;line-height:1.6">
+        content: [<br>
+        &nbsp;{<br>
+        &nbsp;&nbsp;type: 'text',<br>
+        &nbsp;&nbsp;text: 'Parse this receipt and<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return JSON only.\n\n'<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ text<br>
+        &nbsp;}<br>
+        ]
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>System prompt — minor addition</h3>
+  <div style="background:var(--surface-2);border-radius:8px;padding:0.85rem;font-size:0.85em">
+    <div style="font-weight:600;margin-bottom:6px">Append one line to the existing rules:</div>
+    <div style="font-family:monospace;color:#16a34a">
+      - If input is CSV, the first row may be a header — skip it and parse data rows as items
+    </div>
+    <div style="color:var(--text-secondary);margin-top:8px">Everything else in the prompt stays the same.</div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem;font-size:0.9em;color:var(--text-secondary)">Does this look right? Reply in the terminal to continue to Section 3 (Web UI).</p>

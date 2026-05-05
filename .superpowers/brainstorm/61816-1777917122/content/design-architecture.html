@@ -1,0 +1,71 @@
+<h2>Design: Architecture & Data Flow</h2>
+<p class="subtitle">Section 1 of 4 — The API route becomes a multi-modal router</p>
+
+<div class="section">
+  <h3>Current flow (image only)</h3>
+  <div style="font-family:monospace;font-size:0.82em;background:var(--surface-2);border-radius:8px;padding:1rem;line-height:2">
+    Client → upload JPEG/PNG/WebP → Supabase Storage<br>
+    Client → POST storagePath → <strong>API route</strong><br>
+    API route → fetch file → base64 encode → Claude Vision → JSON
+  </div>
+</div>
+
+<div class="section">
+  <h3>New flow (multi-format)</h3>
+  <div style="font-family:monospace;font-size:0.82em;background:var(--surface-2);border-radius:8px;padding:1rem;line-height:2">
+    Client → upload <strong>any type</strong> → Supabase Storage<br>
+    Client → POST storagePath → <strong>API route (multi-modal router)</strong><br>
+    <br>
+    API route → fetch file → detect MIME type<br>
+    &nbsp;&nbsp;├── image/* &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ base64 → Claude Vision &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(unchanged)<br>
+    &nbsp;&nbsp;├── application/pdf → base64 → Claude Document API &nbsp;(new)<br>
+    &nbsp;&nbsp;└── text/plain|csv → UTF-8 decode → Claude Text msg &nbsp;(new)<br>
+    <br>
+    All paths → same JSON response → same validation → same review
+  </div>
+</div>
+
+<div class="section">
+  <h3>What stays the same</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;font-size:0.85em">
+    <div style="background:var(--surface-2);border-radius:8px;padding:0.75rem">
+      <div style="font-weight:600;margin-bottom:4px">✅ Storage path pattern</div>
+      <div style="color:var(--text-secondary)">{userId}/{uuid}.ext — unchanged</div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:0.75rem">
+      <div style="font-weight:600;margin-bottom:4px">✅ Auth & rate limiting</div>
+      <div style="color:var(--text-secondary)">Bearer token + 20 req/hr — unchanged</div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:0.75rem">
+      <div style="font-weight:600;margin-bottom:4px">✅ ParsedReceiptSchema</div>
+      <div style="color:var(--text-secondary)">Same Zod validation on Claude output</div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:0.75rem">
+      <div style="font-weight:600;margin-bottom:4px">✅ Review flow</div>
+      <div style="color:var(--text-secondary)">Web review UI + mobile review screen — unchanged</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>File size guards (new)</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;font-size:0.85em;text-align:center">
+    <div style="background:var(--surface-2);border-radius:8px;padding:0.75rem">
+      <div style="font-size:1.4em">🖼️</div>
+      <div style="font-weight:600">Images</div>
+      <div style="color:var(--text-secondary)">No change<br/>(mobile compresses to ~2 MB)</div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:0.75rem">
+      <div style="font-size:1.4em">📄</div>
+      <div style="font-weight:600">PDF</div>
+      <div style="color:var(--text-secondary)">Max 20 MB<br/>(Claude supports 32 MB)</div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:0.75rem">
+      <div style="font-size:1.4em">📝</div>
+      <div style="font-weight:600">TXT / CSV</div>
+      <div style="color:var(--text-secondary)">Max 1 MB<br/>(text receipts are tiny)</div>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem;font-size:0.9em;color:var(--text-secondary)">Does this architecture look right? Reply in the terminal to continue to Section 2.</p>

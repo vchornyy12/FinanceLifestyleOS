@@ -1,0 +1,80 @@
+<h2>Design: Mobile Changes</h2>
+<p class="subtitle">Section 4 of 4 — new file upload entry point + pipeline variant</p>
+
+<div class="section">
+  <h3>Entry point: action sheet on Home screen</h3>
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">Current action sheet</div>
+      <div class="mockup-body" style="display:flex;flex-direction:column;gap:2px;font-size:0.85em">
+        <div style="background:#f9fafb;border-radius:8px;padding:12px 16px;text-align:center;color:#1d4ed8;font-weight:500">Take Photo</div>
+        <div style="background:#f9fafb;border-radius:8px;padding:12px 16px;text-align:center;color:#1d4ed8;font-weight:500">Upload from Gallery</div>
+        <div style="background:#f9fafb;border-radius:8px;padding:12px 16px;text-align:center;color:#1d4ed8;font-weight:500">Upload Receipt Screenshot</div>
+        <div style="background:#f9fafb;border-radius:8px;padding:12px 16px;text-align:center;color:#6b7280">Cancel</div>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">After — one new option</div>
+      <div class="mockup-body" style="display:flex;flex-direction:column;gap:2px;font-size:0.85em">
+        <div style="background:#f9fafb;border-radius:8px;padding:12px 16px;text-align:center;color:#1d4ed8;font-weight:500">Take Photo</div>
+        <div style="background:#f9fafb;border-radius:8px;padding:12px 16px;text-align:center;color:#1d4ed8;font-weight:500">Upload from Gallery</div>
+        <div style="background:#f9fafb;border-radius:8px;padding:12px 16px;text-align:center;color:#1d4ed8;font-weight:500">Upload Receipt Screenshot</div>
+        <div style="background:#fff3cd;border:1px solid #fbbf24;border-radius:8px;padding:12px 16px;text-align:center;color:#1d4ed8;font-weight:500">📂 Upload File (PDF, TXT, CSV)</div>
+        <div style="background:#f9fafb;border-radius:8px;padding:12px 16px;text-align:center;color:#6b7280">Cancel</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>New code — three small additions</h3>
+  <div style="font-size:0.85em;line-height:1.8">
+    <div style="background:var(--surface-2);border-radius:8px;padding:1rem;margin-bottom:0.75rem">
+      <div style="font-weight:600;margin-bottom:4px">1. receiptUpload.ts — uploadReceiptFile()</div>
+      <div style="color:var(--text-secondary)">
+        New function alongside <code>uploadReceiptImage</code>. Skips compression entirely.
+        Picks the correct extension from the MIME type (pdf / txt / csv), uploads to
+        <code>receipts/{userId}/{uuid}.ext</code> with the correct <code>contentType</code>.
+      </div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:1rem;margin-bottom:0.75rem">
+      <div style="font-weight:600;margin-bottom:4px">2. useReceiptPipeline.ts — runFromFile(uri, mimeType)</div>
+      <div style="color:var(--text-secondary)">
+        New method on the existing hook. Skips <code>compressImage</code>, calls
+        <code>uploadReceiptFile</code> instead of <code>uploadReceiptImage</code>,
+        then calls the same <code>parseReceipt</code> → router.push review flow.
+        The existing <code>run()</code> for camera/gallery is untouched.
+      </div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:1rem">
+      <div style="font-weight:600;margin-bottom:4px">3. index.tsx — handleFilePick()</div>
+      <div style="color:var(--text-secondary)">
+        New handler using <code>expo-document-picker</code>.
+        Calls <code>DocumentPicker.getDocumentAsync({ type: ['application/pdf','text/plain','text/csv'] })</code>,
+        then calls <code>pipeline.runFromFile(uri, mimeType)</code>.
+        Added to both the iOS ActionSheetIOS options and the Android Alert options.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>New dependency</h3>
+  <div style="background:var(--surface-2);border-radius:8px;padding:0.85rem;font-size:0.85em">
+    <div style="font-family:monospace;color:#16a34a">expo-document-picker</div>
+    <div style="color:var(--text-secondary);margin-top:4px">
+      Already part of the Expo SDK ecosystem — no native build config changes needed.
+      Added to <code>apps/mobile/package.json</code>.
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>What does NOT change on mobile</h3>
+  <div style="font-size:0.85em;color:var(--text-secondary)">
+    Camera capture flow, gallery flow, screenshot flow, review screen, save-receipt action — all untouched.
+    The file upload path lands on exactly the same review screen as a camera photo.
+  </div>
+</div>
+
+<p style="margin-top:1.5rem;font-size:0.9em;color:var(--text-secondary)">Does this look right? Reply in the terminal — if approved, I'll write the full design doc.</p>

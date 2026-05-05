@@ -1,0 +1,72 @@
+<h2>Design: Web UI Changes</h2>
+<p class="subtitle">Section 3 of 4 — ReceiptUploader.tsx</p>
+
+<div class="section">
+  <h3>What changes in ReceiptUploader.tsx</h3>
+  <div style="font-size:0.85em;line-height:1.8">
+    <div style="background:var(--surface-2);border-radius:8px;padding:1rem;margin-bottom:0.75rem">
+      <div style="font-weight:600;margin-bottom:6px">1. File validation (line 69)</div>
+      <div style="font-family:monospace;color:var(--text-secondary);font-size:0.9em">
+        <span style="color:#dc2626;text-decoration:line-through">if (!file.type.match(/^image\/(jpeg|png|webp)$/))</span><br>
+        <span style="color:#16a34a">const ACCEPTED = /^(image\/(jpeg|png|webp)|application\/pdf|text\/(plain|csv))$/</span><br>
+        <span style="color:#16a34a">if (!ACCEPTED.test(file.type))</span>
+      </div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:1rem;margin-bottom:0.75rem">
+      <div style="font-weight:600;margin-bottom:6px">2. Storage path extension (lines 89–95)</div>
+      <div style="font-family:monospace;color:var(--text-secondary);font-size:0.9em">
+        Add cases for pdf, txt, csv:<br>
+        <span style="color:#16a34a">application/pdf → .pdf</span><br>
+        <span style="color:#16a34a">text/plain &nbsp;&nbsp;&nbsp;&nbsp;→ .txt</span><br>
+        <span style="color:#16a34a">text/csv &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ .csv</span>
+      </div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:1rem;margin-bottom:0.75rem">
+      <div style="font-weight:600;margin-bottom:6px">3. &lt;input accept&gt; attribute</div>
+      <div style="font-family:monospace;color:var(--text-secondary);font-size:0.9em">
+        <span style="color:#dc2626;text-decoration:line-through">accept="image/jpeg,image/png,image/webp"</span><br>
+        <span style="color:#16a34a">accept="image/jpeg,image/png,image/webp,application/pdf,.pdf,text/plain,.txt,text/csv,.csv"</span>
+      </div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:1rem">
+      <div style="font-weight:600;margin-bottom:6px">4. Hint text</div>
+      <div style="font-family:monospace;color:var(--text-secondary);font-size:0.9em">
+        <span style="color:#dc2626;text-decoration:line-through">"JPEG, PNG or WebP"</span><br>
+        <span style="color:#16a34a">"JPEG, PNG, WebP, PDF, TXT or CSV"</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Upload area mockup — before vs after</h3>
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">Before</div>
+      <div class="mockup-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:2rem;border:2px dashed #d1d5db;border-radius:12px;min-height:160px">
+        <div style="font-size:2.5em">⬆️</div>
+        <div style="font-weight:600;font-size:0.9em;color:#374151">Click to upload or drag &amp; drop</div>
+        <div style="font-size:0.78em;color:#9ca3af">JPEG, PNG or WebP</div>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">After</div>
+      <div class="mockup-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:2rem;border:2px dashed #d1d5db;border-radius:12px;min-height:160px">
+        <div style="font-size:2.5em">⬆️</div>
+        <div style="font-weight:600;font-size:0.9em;color:#374151">Click to upload or drag &amp; drop</div>
+        <div style="font-size:0.78em;color:#9ca3af">JPEG, PNG, WebP, PDF, TXT or CSV</div>
+      </div>
+    </div>
+  </div>
+  <p style="font-size:0.82em;color:var(--text-secondary);margin-top:0.5rem">The upload area itself doesn't change visually — only the hint text and accepted types update.</p>
+</div>
+
+<div class="section">
+  <h3>Error messages</h3>
+  <div style="background:var(--surface-2);border-radius:8px;padding:0.85rem;font-size:0.85em">
+    <div style="margin-bottom:6px"><span style="font-family:monospace">UNSUPPORTED_FILE_TYPE</span> (new from API) → <em>"This file type isn't supported. Upload a JPEG, PNG, WebP, PDF, TXT, or CSV."</em></div>
+    <div><span style="font-family:monospace">FILE_TOO_LARGE</span> (new from API) → <em>"File is too large. PDFs must be under 20 MB, text files under 1 MB."</em></div>
+  </div>
+</div>
+
+<p style="margin-top:1.5rem;font-size:0.9em;color:var(--text-secondary)">Does this look right? Reply in the terminal to continue to Section 4 (Mobile).</p>

@@ -1,0 +1,86 @@
+<h2>3 Approaches to Multi-Format Receipt Parsing</h2>
+<p class="subtitle">Each approach changes how the API route sends content to Claude</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Claude-Native Multi-Modal <span style="font-size:0.75em;color:#16a34a;font-weight:600;">Recommended</span></h3>
+      <p style="margin-bottom:0.75rem">Use Claude's built-in capabilities for every type — no new server-side libraries.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;font-size:0.8em;margin-bottom:0.75rem">
+        <div style="background:var(--surface-2);border-radius:6px;padding:0.5rem;text-align:center">
+          <div style="font-size:1.5em;margin-bottom:2px">🖼️</div>
+          <div style="font-weight:600">JPEG/PNG/WebP</div>
+          <div style="color:var(--text-secondary)">Vision API<br/><em>(unchanged)</em></div>
+        </div>
+        <div style="background:var(--surface-2);border-radius:6px;padding:0.5rem;text-align:center">
+          <div style="font-size:1.5em;margin-bottom:2px">📄</div>
+          <div style="font-weight:600">PDF (multi-page)</div>
+          <div style="color:var(--text-secondary)">Claude Document API<br/><em>type: 'document'</em></div>
+        </div>
+        <div style="background:var(--surface-2);border-radius:6px;padding:0.5rem;text-align:center">
+          <div style="font-size:1.5em;margin-bottom:2px">📝</div>
+          <div style="font-weight:600">TXT / CSV</div>
+          <div style="color:var(--text-secondary)">Text message<br/><em>type: 'text'</em></div>
+        </div>
+      </div>
+      <div class="pros-cons" style="font-size:0.82em">
+        <div class="pros"><h4>Pros</h4><ul><li>No new npm packages</li><li>Multi-page PDF natively</li><li>Simplest code path</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>PDF up to ~32 MB limit</li><li>Slight extra API latency for large PDFs</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Server-Side PDF Text Extraction</h3>
+      <p style="margin-bottom:0.75rem">Extract text from PDFs using <code>pdfjs-dist</code> on the server, then send all types as text.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;font-size:0.8em;margin-bottom:0.75rem">
+        <div style="background:var(--surface-2);border-radius:6px;padding:0.5rem;text-align:center">
+          <div style="font-size:1.5em;margin-bottom:2px">🖼️</div>
+          <div style="font-weight:600">JPEG/PNG/WebP</div>
+          <div style="color:var(--text-secondary)">Vision API<br/><em>(unchanged)</em></div>
+        </div>
+        <div style="background:var(--surface-2);border-radius:6px;padding:0.5rem;text-align:center">
+          <div style="font-size:1.5em;margin-bottom:2px">📄</div>
+          <div style="font-weight:600">PDF</div>
+          <div style="color:var(--text-secondary)">Extract text → Text message via pdfjs-dist</div>
+        </div>
+        <div style="background:var(--surface-2);border-radius:6px;padding:0.5rem;text-align:center">
+          <div style="font-size:1.5em;margin-bottom:2px">📝</div>
+          <div style="font-weight:600">TXT / CSV</div>
+          <div style="color:var(--text-secondary)">Text message<br/><em>(direct read)</em></div>
+        </div>
+      </div>
+      <div class="pros-cons" style="font-size:0.82em">
+        <div class="pros"><h4>Pros</h4><ul><li>Works for any text-based PDF</li><li>Smaller Claude input for text PDFs</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Adds <em>pdfjs-dist</em> (~2 MB bundle)</li><li>Fails for scanned/image-only PDFs</li><li>Loses visual layout info</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>All-Image Pipeline (PDF → Images)</h3>
+      <p style="margin-bottom:0.75rem">Rasterize every PDF page server-side into images, then use vision for everything.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.8em;margin-bottom:0.75rem">
+        <div style="background:var(--surface-2);border-radius:6px;padding:0.5rem;text-align:center">
+          <div style="font-size:1.5em;margin-bottom:2px">📄</div>
+          <div style="font-weight:600">PDF</div>
+          <div style="color:var(--text-secondary)">Rasterize pages → multiple vision calls</div>
+        </div>
+        <div style="background:var(--surface-2);border-radius:6px;padding:0.5rem;text-align:center">
+          <div style="font-size:1.5em;margin-bottom:2px">🔧</div>
+          <div style="font-weight:600">Requires</div>
+          <div style="color:var(--text-secondary)">canvas, sharp, or Puppeteer on the server</div>
+        </div>
+      </div>
+      <div class="pros-cons" style="font-size:0.82em">
+        <div class="pros"><h4>Pros</h4><ul><li>Works for scanned PDFs</li><li>Consistent image path for all</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Very complex server setup</li><li>Heavy native dependencies</li><li>Breaks Netlify serverless</li><li>Slow for multi-page</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
