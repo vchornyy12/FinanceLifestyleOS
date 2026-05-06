@@ -1,5 +1,6 @@
 import type { WalletWithBalance, TransactionType } from '@/types/database'
 import type { MonthlyMetrics } from '@/lib/supabase/queries/metrics'
+import type { TopProduct } from '@/lib/supabase/queries/receiptItems'
 
 interface Transaction {
   date: string
@@ -15,6 +16,7 @@ interface PromptContext {
   metrics: MonthlyMetrics
   wallets: WalletWithBalance[]
   transactions: Transaction[]
+  topProducts: TopProduct[]
 }
 
 export function buildSystemPrompt(ctx: PromptContext): string {
@@ -24,6 +26,10 @@ export function buildSystemPrompt(ctx: PromptContext): string {
 
   const txLines = ctx.transactions
     .map((t) => `${t.date} | ${t.merchant} | ${t.type} | ${t.amount} | ${t.category ?? '—'}`)
+    .join('\n')
+
+  const productLines = ctx.topProducts
+    .map((p, i) => `${i + 1}. ${p.name} — ${p.total.toFixed(2)} PLN (×${p.count})`)
     .join('\n')
 
   return `You are a personal finance coach for a Polish user.
@@ -41,6 +47,9 @@ ${walletLines || 'No wallets yet.'}
 ## Recent transactions
 date       | merchant | type | amount | category
 ${txLines || 'No transactions yet.'}
+
+## Top products this month (from scanned receipts)
+${productLines || 'No receipt data yet.'}
 
 Answer in the same language the user writes in.
 Be concise and specific — refer to actual numbers from the data above.`

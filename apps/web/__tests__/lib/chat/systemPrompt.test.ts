@@ -24,6 +24,7 @@ describe('buildSystemPrompt', () => {
     transactions: [
       { date: '2026-04-15', merchant: 'Biedronka', type: 'expense' as const, amount: '120.50', category: 'Groceries' },
     ],
+    topProducts: [],
   }
 
   it('includes monthly income figure', () => {

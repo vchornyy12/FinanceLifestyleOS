@@ -3,6 +3,7 @@ import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 import { getMonthlyMetrics } from '@/lib/supabase/queries/metrics'
 import { getUserWalletsWithBalances } from '@/lib/supabase/queries/wallets'
+import { getTopProducts } from '@/lib/supabase/queries/receiptItems'
 import { buildSystemPrompt } from '@/lib/chat/systemPrompt'
 
 let _openai: OpenAI | null = null
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     // Fetch financial context in parallel
     const yearMonth = currentYearMonth()
-    const [metrics, wallets, txResult] = await Promise.all([
+    const [metrics, wallets, txResult, topProducts] = await Promise.all([
       getMonthlyMetrics(yearMonth),
       getUserWalletsWithBalances(supabase),
       supabase
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest) {
         .eq('user_id', user.id)
         .order('date', { ascending: false })
         .limit(50),
+      getTopProducts(yearMonth),
     ])
 
     const transactions = (txResult.data ?? []).map((t) => ({
@@ -97,6 +99,7 @@ export async function POST(req: NextRequest) {
       metrics,
       wallets,
       transactions,
+      topProducts,
     })
 
     const model = process.env.NVIDIA_MODEL

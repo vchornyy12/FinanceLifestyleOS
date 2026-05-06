@@ -11,6 +11,7 @@ interface Message {
 
 const STARTER_PROMPTS = [
   'Why did I overspend this month?',
+  'What are my most expensive products from receipts?',
   'How is my savings rate trending?',
   'Which wallet has the highest balance?',
   'Give me a spending breakdown by category',
