@@ -26,7 +26,7 @@ export async function getTopProducts(yearMonth: string): Promise<TopProduct[]> {
 
   const { data, error } = await supabase
     .from('receipt_items')
-    .select('name, total_price, transaction:transactions!transaction_id(date)')
+    .select('name, canonical_product_name, normalized_name, total_price, transaction:transactions!transaction_id(date)')
     .gte('transaction.date', first)
     .lte('transaction.date', last)
     .not('transaction', 'is', null)
@@ -36,12 +36,16 @@ export async function getTopProducts(yearMonth: string): Promise<TopProduct[]> {
   }
 
   // Aggregate client-side — Supabase PostgREST doesn't support GROUP BY directly.
+  // Fallback chain: canonical_product_name → normalized_name → name
   const map = new Map<string, { total: number; count: number }>()
   for (const row of data ?? []) {
-    const existing = map.get(row.name) ?? { total: 0, count: 0 }
+    const displayName = (row as { canonical_product_name?: string | null; normalized_name?: string | null; name: string }).canonical_product_name
+      ?? (row as { normalized_name?: string | null }).normalized_name
+      ?? row.name
+    const existing = map.get(displayName) ?? { total: 0, count: 0 }
     existing.total += Number(row.total_price)
     existing.count += 1
-    map.set(row.name, existing)
+    map.set(displayName, existing)
   }
 
   return Array.from(map.entries())

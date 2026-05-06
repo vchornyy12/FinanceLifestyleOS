@@ -7,6 +7,9 @@ export const ReceiptItemSchema = z.object({
   total_price: z.number(),
   category: z.string(),
   confidence: z.enum(['high', 'low']),
+  // Optional fields populated by normalization pipeline after OCR
+  raw_name: z.string().optional(),
+  normalized_name: z.string().optional(),
 })
 
 export const ParsedReceiptSchema = z.object({

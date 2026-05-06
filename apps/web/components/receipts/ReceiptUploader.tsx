@@ -3,9 +3,8 @@
 import { useState, useRef, useCallback, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import type { ParsedReceipt } from '@/lib/ocr/receiptSchema'
-import type { WalletWithBalance } from '@/types/database'
 import type { SaveReceiptInput } from '@/app/dashboard/receipts/upload/actions'
+import type { WalletWithBalance } from '@/types/database'
 
 type Phase = 'idle' | 'processing' | 'review'
 
@@ -14,13 +13,65 @@ interface Category {
   name: string
 }
 
-interface ReviewItem {
+// What the parse route actually returns per item (superset of the Zod schema)
+interface ParsedItem {
   name: string
+  quantity: number
+  unit_price: number
+  total_price: number
+  category: string
+  confidence: 'high' | 'low'
+  raw_name?: string
+  normalized_name?: string | null
+  canonical_product_name?: string | null
+  brand?: string | null
+  size_value?: number | null
+  size_unit?: string | null
+  flavor?: string | null
+  variant?: string | null
+  gtin?: string | null
+  normalization_confidence?: number | null
+  enrichment_confidence?: number | null
+  normalization_source?: string | null
+  enrichment_source?: string | null
+  needs_review?: boolean
+  product_fingerprint?: string | null
+}
+
+interface ParsedReceiptResponse {
+  store: string
+  date: string
+  total: number
+  confidence: 'high' | 'low'
+  discrepancy_warning?: boolean
+  items: ParsedItem[]
+}
+
+// Internal review state per item
+interface ReviewItem {
+  // display_name: what the user sees and edits (initialized to canonical/normalized/raw)
+  display_name: string
+  raw_name: string
   quantity: number
   unit_price: number
   total_price: number
   category_id: string
   confidence: 'high' | 'low'
+  // Enrichment passthrough
+  normalized_name: string | null
+  canonical_product_name: string | null
+  brand: string | null
+  size_value: number | null
+  size_unit: string | null
+  flavor: string | null
+  variant: string | null
+  gtin: string | null
+  normalization_confidence: number | null
+  enrichment_confidence: number | null
+  normalization_source: string | null
+  enrichment_source: string | null
+  needs_review: boolean
+  product_fingerprint: string | null
 }
 
 interface ReviewState {
@@ -47,6 +98,27 @@ function matchCategory(ocrCategory: string, categories: Category[]): string {
       lower.includes(c.name.toLowerCase()),
   )
   return match?.id ?? ''
+}
+
+function normConfidenceLabel(
+  confidence: number | null | undefined,
+  needsReview: boolean,
+): { label: string; className: string } | null {
+  if (needsReview || (confidence !== null && confidence !== undefined && confidence < 0.7)) {
+    return {
+      label: 'review',
+      className:
+        'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
+    }
+  }
+  if (confidence !== null && confidence !== undefined && confidence < 0.85) {
+    return {
+      label: 'medium',
+      className:
+        'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
+    }
+  }
+  return null
 }
 
 const PLN = new Intl.NumberFormat('pl-PL', {
@@ -132,7 +204,7 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
           return
         }
 
-        const receipt: ParsedReceipt = await parseRes.json()
+        const receipt = (await parseRes.json()) as ParsedReceiptResponse
 
         setReview({
           store: receipt.store,
@@ -140,14 +212,34 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
           wallet_id: wallets[0]?.id ?? '',
           total: receipt.total,
           discrepancy_warning: receipt.discrepancy_warning,
-          items: receipt.items.map((item) => ({
-            name: item.name,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            total_price: item.total_price,
-            category_id: matchCategory(item.category, categories),
-            confidence: item.confidence,
-          })),
+          items: receipt.items.map((item) => {
+            const raw = item.raw_name ?? item.name
+            const displayName =
+              item.canonical_product_name ?? item.normalized_name ?? item.name
+            return {
+              display_name: displayName,
+              raw_name: raw,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              total_price: item.total_price,
+              category_id: matchCategory(item.category, categories),
+              confidence: item.confidence,
+              normalized_name: item.normalized_name ?? null,
+              canonical_product_name: item.canonical_product_name ?? null,
+              brand: item.brand ?? null,
+              size_value: item.size_value ?? null,
+              size_unit: item.size_unit ?? null,
+              flavor: item.flavor ?? null,
+              variant: item.variant ?? null,
+              gtin: item.gtin ?? null,
+              normalization_confidence: item.normalization_confidence ?? null,
+              enrichment_confidence: item.enrichment_confidence ?? null,
+              normalization_source: item.normalization_source ?? null,
+              enrichment_source: item.enrichment_source ?? null,
+              needs_review: item.needs_review ?? false,
+              product_fingerprint: item.product_fingerprint ?? null,
+            }
+          }),
         })
         setPhase('review')
       } catch (err) {
@@ -199,12 +291,31 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
         wallet_id: review.wallet_id || null,
         total: review.total,
         items: review.items.map((item) => ({
-          name: item.name,
+          // name = what the user confirmed/edited
+          name: item.display_name,
           quantity: item.quantity,
           unit_price: item.unit_price,
           total_price: item.total_price,
           category_id: item.category_id || null,
           confidence: item.confidence,
+          // Enrichment passthrough
+          raw_name: item.raw_name,
+          normalized_name: item.normalized_name,
+          canonical_product_name: item.canonical_product_name,
+          brand: item.brand,
+          size_value: item.size_value,
+          size_unit: item.size_unit,
+          flavor: item.flavor,
+          variant: item.variant,
+          gtin: item.gtin,
+          normalization_confidence: item.normalization_confidence,
+          enrichment_confidence: item.enrichment_confidence,
+          normalization_source: item.normalization_source,
+          enrichment_source: item.enrichment_source,
+          product_fingerprint: item.product_fingerprint,
+          needs_review: false, // user has reviewed — clear the flag
+          // Mark as confirmed if we had normalization data
+          user_confirmed: item.normalized_name !== null,
         })),
       })
 
@@ -327,6 +438,8 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
 
   if (!review) return null
 
+  const needsReviewCount = review.items.filter((i) => i.needs_review).length
+
   return (
     <div className="flex max-w-3xl flex-col gap-6">
       {/* Header fields */}
@@ -389,6 +502,14 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
         </p>
       )}
 
+      {needsReviewCount > 0 && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400">
+          {needsReviewCount} item{needsReviewCount > 1 ? 's' : ''} flagged for
+          review — the AI was less confident about the product name. Check and
+          correct if needed before saving.
+        </p>
+      )}
+
       {/* Items table */}
       <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <div className="overflow-x-auto">
@@ -413,52 +534,79 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {review.items.map((item, i) => (
-                <tr key={i}>
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={item.name}
+              {review.items.map((item, i) => {
+                const normBadge = normConfidenceLabel(
+                  item.normalization_confidence,
+                  item.needs_review,
+                )
+                const wasNormalized =
+                  item.normalized_name !== null &&
+                  item.raw_name !== item.display_name
+                const rowHighlight = item.needs_review
+                  ? 'border-l-2 border-l-amber-400'
+                  : ''
+
+                return (
+                  <tr key={i} className={rowHighlight}>
+                    <td className="px-4 py-2.5">
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={item.display_name}
+                            onChange={(e) =>
+                              updateItem(i, { display_name: e.target.value })
+                            }
+                            className="min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-sm text-zinc-900 hover:border-zinc-300 focus:border-zinc-400 focus:outline-none dark:text-zinc-100 dark:hover:border-zinc-600"
+                          />
+                          {item.confidence === 'low' && (
+                            <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                              low OCR
+                            </span>
+                          )}
+                          {normBadge && (
+                            <span
+                              className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${normBadge.className}`}
+                            >
+                              {normBadge.label}
+                            </span>
+                          )}
+                        </div>
+                        {wasNormalized && (
+                          <p className="pl-1 text-xs text-zinc-400 dark:text-zinc-500">
+                            Scanned: {item.raw_name}
+                          </p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-zinc-600 dark:text-zinc-400">
+                      {item.quantity}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-zinc-600 dark:text-zinc-400">
+                      {PLN.format(item.unit_price)}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-medium text-zinc-900 dark:text-zinc-100">
+                      {PLN.format(item.total_price)}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <select
+                        value={item.category_id}
                         onChange={(e) =>
-                          updateItem(i, { name: e.target.value })
+                          updateItem(i, { category_id: e.target.value })
                         }
-                        className="min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-sm text-zinc-900 hover:border-zinc-300 focus:border-zinc-400 focus:outline-none dark:text-zinc-100 dark:hover:border-zinc-600"
-                      />
-                      {item.confidence === 'low' && (
-                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
-                          low
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-2.5 text-right text-zinc-600 dark:text-zinc-400">
-                    {item.quantity}
-                  </td>
-                  <td className="px-4 py-2.5 text-right text-zinc-600 dark:text-zinc-400">
-                    {PLN.format(item.unit_price)}
-                  </td>
-                  <td className="px-4 py-2.5 text-right font-medium text-zinc-900 dark:text-zinc-100">
-                    {PLN.format(item.total_price)}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <select
-                      value={item.category_id}
-                      onChange={(e) =>
-                        updateItem(i, { category_id: e.target.value })
-                      }
-                      className="w-full rounded border border-zinc-200 bg-white px-2 py-0.5 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
-                    >
-                      <option value="">— uncategorised —</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
-              ))}
+                        className="w-full rounded border border-zinc-200 bg-white px-2 py-0.5 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+                      >
+                        <option value="">— uncategorised —</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
             <tfoot className="border-t border-zinc-200 dark:border-zinc-700">
               <tr>

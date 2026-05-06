@@ -9,6 +9,8 @@ import {
   buildReceiptTextMessage,
 } from '@/lib/ocr/parseReceiptPrompt'
 import { ParsedReceiptSchema } from '@/lib/ocr/receiptSchema'
+import { normalizeReceiptItem } from '@/lib/normalization/normalize'
+import { getEnrichmentProvider } from '@/lib/enrichment/factory'
 
 // Lazy singletons — initialized on first request, not at module evaluation time.
 // Module-level createClient() calls throw during `next build` if env vars are
@@ -218,7 +220,43 @@ export async function POST(req: NextRequest) {
       receipt.discrepancy_warning = true
     }
 
-    return NextResponse.json(receipt)
+    // Normalization + enrichment — runs after schema validation, errors are non-fatal
+    const enrichmentProvider = getEnrichmentProvider()
+    const supabaseAdmin = getSupabaseAdmin()
+    const enrichedItems = await Promise.all(
+      receipt.items.map(async (item) => {
+        try {
+          const norm = await normalizeReceiptItem(item.name, user.id, receipt.store, supabaseAdmin)
+          let enrichment = null
+          if (norm.attributes.size_value || norm.normalizedName) {
+            enrichment = await enrichmentProvider.lookup({ name: norm.normalizedName })
+          }
+          return {
+            ...item,
+            raw_name: norm.rawName,
+            normalized_name: norm.normalizedName,
+            canonical_product_name: enrichment?.canonical_product_name ?? norm.canonical_product_name,
+            brand: enrichment?.brand ?? null,
+            size_value: norm.attributes.size_value,
+            size_unit: norm.attributes.size_unit,
+            flavor: norm.attributes.flavor,
+            variant: norm.attributes.variant,
+            gtin: enrichment?.gtin ?? null,
+            normalization_confidence: norm.confidence,
+            enrichment_confidence: enrichment?.confidence ?? null,
+            normalization_source: norm.source,
+            enrichment_source: enrichment?.source ?? null,
+            needs_review: norm.needs_review,
+            product_fingerprint: norm.fingerprint,
+          }
+        } catch (normErr) {
+          console.error('[ocr] normalization_error for item=%s:', item.name, normErr)
+          return { ...item, raw_name: item.name, needs_review: false }
+        }
+      }),
+    )
+
+    return NextResponse.json({ ...receipt, items: enrichedItems })
   } catch (err) {
     if (err instanceof ServerMisconfiguredError) {
       console.error('[ocr] server_misconfigured:', err.message)
