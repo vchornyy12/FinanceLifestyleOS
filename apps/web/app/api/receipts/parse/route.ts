@@ -101,6 +101,7 @@ const RequestSchema = z.object({ storagePath: z.string().min(1) })
 // The mobile app calls it via EXPO_PUBLIC_API_BASE_URL which points to the
 // Next.js server — no cross-origin browser traffic is expected.
 export async function POST(req: NextRequest) {
+  const handlerStart = Date.now()
   try {
     // Auth validation
     const authHeader = req.headers.get('authorization')
@@ -191,15 +192,28 @@ export async function POST(req: NextRequest) {
     // is rejected at the schema layer.
     let message
     try {
-      message = await getAnthropic().messages.create({
+      // Budget: 20s from handler start for the Claude call. Netlify's function
+      // limit is 26s from Lambda invocation; subtracting elapsed handler time
+      // (auth, image fetch, pdf extraction) plus a 2s safety margin ensures we
+      // return a clean response before the Lambda is force-killed.
+      const CLAUDE_BUDGET_MS = 20_000
+      const elapsed = Date.now() - handlerStart
+      const claudeTimeout = Math.max(5_000, CLAUDE_BUDGET_MS - elapsed)
+
+      const claudeCall = getAnthropic().messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 8192,
         system: RECEIPT_SYSTEM_PROMPT,
         messages: [userMessage],
-      }, { timeout: 24_000 })
+      })
+      const timeoutRejection = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('CLAUDE_TIMEOUT')), claudeTimeout)
+      )
+      message = await Promise.race([claudeCall, timeoutRejection])
     } catch (anthropicErr) {
-      if (anthropicErr instanceof Anthropic.APIConnectionTimeoutError) {
-        console.error('[ocr] anthropic_timeout: Claude exceeded 24s for mime=%s', mimeType)
+      if (anthropicErr instanceof Error && anthropicErr.message === 'CLAUDE_TIMEOUT') {
+        const elapsed = Date.now() - handlerStart
+        console.error('[ocr] anthropic_timeout: Claude exceeded budget, elapsed=%dms, mime=%s', elapsed, mimeType)
         return NextResponse.json({ error: 'TIMEOUT' }, { status: 504 })
       }
       const detail = anthropicErr instanceof Error ? anthropicErr.message : String(anthropicErr)
