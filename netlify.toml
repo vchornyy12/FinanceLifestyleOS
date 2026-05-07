@@ -14,5 +14,10 @@
 
 # Locally installed v5 takes precedence over Netlify's auto-managed version.
 # Required for monorepo: auto-detection alone doesn't reliably activate OpenNext.
+[functions]
+  # Raise function timeout to the platform maximum — Claude Vision on multi-page
+  # scanned PDFs can take 20-25s. Default (10s) is too short; 26s is the max.
+  timeout = 26
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"

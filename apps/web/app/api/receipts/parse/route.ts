@@ -196,8 +196,12 @@ export async function POST(req: NextRequest) {
         max_tokens: 8192,
         system: RECEIPT_SYSTEM_PROMPT,
         messages: [userMessage],
-      })
+      }, { timeout: 24_000 })
     } catch (anthropicErr) {
+      if (anthropicErr instanceof Anthropic.APIConnectionTimeoutError) {
+        console.error('[ocr] anthropic_timeout: Claude exceeded 24s for mime=%s', mimeType)
+        return NextResponse.json({ error: 'TIMEOUT' }, { status: 504 })
+      }
       const detail = anthropicErr instanceof Error ? anthropicErr.message : String(anthropicErr)
       console.error('[ocr] anthropic_error:', detail)
       return NextResponse.json({ error: 'PARSE_FAILED', detail }, { status: 500 })
