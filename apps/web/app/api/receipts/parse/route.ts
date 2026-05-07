@@ -67,6 +67,16 @@ function isAllowedMimeType(t: string): boolean {
   return (ALLOWED_MIME_TYPES as readonly string[]).includes(t)
 }
 
+async function extractPdfText(buffer: ArrayBuffer): Promise<string> {
+  try {
+    const pdfParse = (await import('pdf-parse')).default
+    const result = await pdfParse(Buffer.from(buffer))
+    return result.text ?? ''
+  } catch {
+    return ''
+  }
+}
+
 function checkRateLimit(userId: string): boolean {
   const now = Date.now()
   for (const [id, entry] of rateLimitMap) {
@@ -162,8 +172,13 @@ export async function POST(req: NextRequest) {
       const imageBase64 = Buffer.from(imageBuffer).toString('base64')
       userMessage = buildReceiptUserMessage(imageBase64, mimeType)
     } else if (mimeType === 'application/pdf') {
-      const pdfBase64 = Buffer.from(imageBuffer).toString('base64')
-      userMessage = buildReceiptDocumentMessage(pdfBase64)
+      const extractedText = await extractPdfText(imageBuffer)
+      if (extractedText.trim().length >= 150) {
+        userMessage = buildReceiptTextMessage(extractedText)
+      } else {
+        const pdfBase64 = Buffer.from(imageBuffer).toString('base64')
+        userMessage = buildReceiptDocumentMessage(pdfBase64)
+      }
     } else {
       const text = Buffer.from(imageBuffer).toString('utf-8')
       userMessage = buildReceiptTextMessage(text)
@@ -178,7 +193,7 @@ export async function POST(req: NextRequest) {
     try {
       message = await getAnthropic().messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 2048,
+        max_tokens: 8192,
         system: RECEIPT_SYSTEM_PROMPT,
         messages: [userMessage],
       })
@@ -198,8 +213,14 @@ export async function POST(req: NextRequest) {
     try {
       parsed = JSON.parse(jsonText)
     } catch {
-      console.error('[ocr] parse_error: Claude response was not valid JSON (first 200 chars): %s', rawText.slice(0, 200))
-      return NextResponse.json({ error: 'PARSE_FAILED', detail: `non-JSON response: ${rawText.slice(0, 300)}` }, { status: 500 })
+      const truncated = message.stop_reason === 'max_tokens'
+      console.error('[ocr] parse_error: stop_reason=%s, first 200 chars: %s', message.stop_reason, jsonText.slice(0, 200))
+      return NextResponse.json({
+        error: 'PARSE_FAILED',
+        detail: truncated
+          ? 'response truncated (max_tokens reached) — receipt may have too many items'
+          : `non-JSON response: ${jsonText.slice(0, 300)}`,
+      }, { status: 500 })
     }
 
     // Handle Claude returning error object

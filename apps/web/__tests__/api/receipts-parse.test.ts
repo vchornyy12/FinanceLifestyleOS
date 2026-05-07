@@ -37,6 +37,12 @@ vi.mock('@anthropic-ai/sdk', () => ({
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
+// Mock pdf-parse — controls what text extraction returns per test
+const mockPdfParse = vi.fn()
+vi.mock('pdf-parse', () => ({
+  default: mockPdfParse,
+}))
+
 // ---------------------------------------------------------------------------
 // Module under test (imported after mocks)
 // ---------------------------------------------------------------------------
@@ -90,7 +96,11 @@ function setupHappyPath() {
 
   mockMessagesCreate.mockResolvedValue({
     content: [{ type: 'text', text: JSON.stringify(VALID_PARSED_RECEIPT) }],
+    stop_reason: 'end_turn',
   })
+
+  // Default: pdf-parse returns no text (scanned PDF) → falls back to document API
+  mockPdfParse.mockResolvedValue({ text: '' })
 }
 
 // ---------------------------------------------------------------------------
@@ -495,6 +505,84 @@ describe('POST /api/receipts/parse', () => {
       const res = await POST(req as never)
       expect(res.status).toBe(504)
       expect((await res.json()).error).toBe('TIMEOUT')
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // PDF hybrid logic
+  // -------------------------------------------------------------------------
+
+  describe('PDF hybrid logic', () => {
+    it('sends text message to Claude when pdf-parse extracts ≥ 150 chars', async () => {
+      const uniqueUserId = `pdf-hybrid-test-1-${Date.now()}`
+      setupHappyPath()
+      mockGetUser.mockResolvedValue({ data: { user: { id: uniqueUserId } }, error: null })
+      mockFetch.mockResolvedValue({
+        ok: true,
+        arrayBuffer: async () => Buffer.from('%PDF-1.4 fake'),
+        headers: { get: () => 'application/pdf' },
+      })
+      // Return enough text to exceed the 150-char threshold
+      const longText = 'Biedronka\n' + 'Chleb 3.49\n'.repeat(20) // ~230 chars
+      mockPdfParse.mockResolvedValue({ text: longText })
+
+      const req = makeRequest({
+        authHeader: `Bearer ${VALID_TOKEN}`,
+        body: { storagePath: `${uniqueUserId}/receipt.pdf` },
+      })
+      const res = await POST(req as never)
+      expect(res.status).toBe(200)
+
+      // Verify Claude was called with a plain-text message (not a document block)
+      const claudeCall = mockMessagesCreate.mock.calls[0][0]
+      expect(claudeCall.messages[0].content[0].type).toBe('text')
+      expect(claudeCall.messages[0].content[0].text).toContain(longText)
+    })
+
+    it('falls back to document message when pdf-parse returns text < 150 chars', async () => {
+      const uniqueUserId = `pdf-hybrid-test-2-${Date.now()}`
+      setupHappyPath()
+      mockGetUser.mockResolvedValue({ data: { user: { id: uniqueUserId } }, error: null })
+      mockFetch.mockResolvedValue({
+        ok: true,
+        arrayBuffer: async () => Buffer.from('%PDF-1.4 fake'),
+        headers: { get: () => 'application/pdf' },
+      })
+      mockPdfParse.mockResolvedValue({ text: 'short' }) // only 5 chars → below threshold
+
+      const req = makeRequest({
+        authHeader: `Bearer ${VALID_TOKEN}`,
+        body: { storagePath: `${uniqueUserId}/receipt.pdf` },
+      })
+      const res = await POST(req as never)
+      expect(res.status).toBe(200)
+
+      // Verify Claude was called with a document block (base64 PDF)
+      const claudeCall = mockMessagesCreate.mock.calls[0][0]
+      expect(claudeCall.messages[0].content[0].type).toBe('document')
+    })
+
+    it('falls back to document message when pdf-parse throws (encrypted / corrupt PDF)', async () => {
+      const uniqueUserId = `pdf-hybrid-test-3-${Date.now()}`
+      setupHappyPath()
+      mockGetUser.mockResolvedValue({ data: { user: { id: uniqueUserId } }, error: null })
+      mockFetch.mockResolvedValue({
+        ok: true,
+        arrayBuffer: async () => Buffer.from('%PDF-1.4 fake'),
+        headers: { get: () => 'application/pdf' },
+      })
+      mockPdfParse.mockRejectedValue(new Error('PDF is encrypted'))
+
+      const req = makeRequest({
+        authHeader: `Bearer ${VALID_TOKEN}`,
+        body: { storagePath: `${uniqueUserId}/receipt.pdf` },
+      })
+      const res = await POST(req as never)
+      expect(res.status).toBe(200)
+
+      // Even on error, Claude should still be called via the document path
+      const claudeCall = mockMessagesCreate.mock.calls[0][0]
+      expect(claudeCall.messages[0].content[0].type).toBe('document')
     })
   })
 })
