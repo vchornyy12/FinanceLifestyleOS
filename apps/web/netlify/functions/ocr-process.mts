@@ -54,10 +54,14 @@ export async function processOcrJob(jobId: string): Promise<void> {
     return
   }
 
-  await supabase
+  const { error: processingUpdateError } = await supabase
     .from('receipt_parse_jobs')
     .update({ status: 'processing', updated_at: new Date().toISOString() })
     .eq('id', jobId)
+  if (processingUpdateError) {
+    console.error('[ocr-bg] processing_update_error: jobId=%s', jobId, processingUpdateError.message)
+    return
+  }
 
   async function failJob(errorCode: string) {
     await supabase
@@ -78,6 +82,10 @@ export async function processOcrJob(jobId: string): Promise<void> {
     const imageRes = await fetch(signedUrlData.signedUrl, {
       signal: AbortSignal.timeout(30_000),
     })
+    if (!imageRes.ok) {
+      console.error('[ocr-bg] fetch_error: jobId=%s status=%d', jobId, imageRes.status)
+      return failJob('PARSE_FAILED')
+    }
     const imageBuffer = await imageRes.arrayBuffer()
     const rawMime = (imageRes.headers.get('content-type') ?? '').split(';')[0].trim()
 
@@ -171,17 +179,22 @@ export async function processOcrJob(jobId: string): Promise<void> {
             product_fingerprint: norm.fingerprint,
           }
         } catch {
-          return { ...item, raw_name: item.name, needs_review: false }
+          return { ...item, raw_name: item.name, needs_review: true }
         }
       }),
     )
 
     const result = { ...receipt, items: enrichedItems }
 
-    await supabase
+    const { error: doneUpdateError } = await supabase
       .from('receipt_parse_jobs')
       .update({ status: 'done', result, updated_at: new Date().toISOString() })
       .eq('id', jobId)
+    if (doneUpdateError) {
+      console.error('[ocr-bg] done_write_error: jobId=%s', jobId, doneUpdateError.message)
+      await failJob('PARSE_FAILED')
+      return
+    }
 
     console.log('[ocr-bg] done: jobId=%s items=%d', jobId, enrichedItems.length)
   } catch (err) {
