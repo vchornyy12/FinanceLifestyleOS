@@ -192,18 +192,18 @@ export async function POST(req: NextRequest) {
     // is rejected at the schema layer.
     let message
     try {
-      // Budget: 20s from handler start for the Claude call. Netlify's function
+      // Budget: 23.5s from handler start for the Claude call. Netlify's function
       // limit is 26s from Lambda invocation; subtracting elapsed handler time
-      // (auth, image fetch, pdf extraction) plus a 2s safety margin ensures we
+      // (auth, image fetch, pdf extraction) plus a 2.5s safety margin ensures we
       // return a clean response before the Lambda is force-killed.
-      const CLAUDE_BUDGET_MS = 20_000
+      const CLAUDE_BUDGET_MS = 23_500
       const elapsed = Date.now() - handlerStart
       const claudeTimeout = Math.max(5_000, CLAUDE_BUDGET_MS - elapsed)
 
       const claudeCall = getAnthropic().messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 8192,
-        system: RECEIPT_SYSTEM_PROMPT,
+        max_tokens: 3000,
+        system: [{ type: 'text', text: RECEIPT_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
         messages: [userMessage],
       })
       const timeoutRejection = new Promise<never>((_, reject) =>
