@@ -1,27 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
-import {
-  RECEIPT_SYSTEM_PROMPT,
-  buildReceiptUserMessage,
-  buildReceiptDocumentMessage,
-  buildReceiptTextMessage,
-} from '@/lib/ocr/parseReceiptPrompt'
-import { ParsedReceiptSchema } from '@/lib/ocr/receiptSchema'
-import { normalizeReceiptItem } from '@/lib/normalization/normalize'
-import { getEnrichmentProvider } from '@/lib/enrichment/factory'
 
-// Lazy singletons — initialized on first request, not at module evaluation time.
-// Module-level createClient() calls throw during `next build` if env vars are
-// missing, so we defer construction to the first POST handler invocation.
-let _anthropic: Anthropic | null = null
 let _supabaseAdmin: ReturnType<typeof createClient> | null = null
-
-function getAnthropic(): Anthropic {
-  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-  return _anthropic
-}
 
 class ServerMisconfiguredError extends Error {
   constructor(missing: string) {
@@ -43,47 +24,12 @@ function getSupabaseAdmin(): ReturnType<typeof createClient> {
   return _supabaseAdmin
 }
 
-// Module-level map — resets on cold start, sufficient for cost control
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-
-const PDF_LIMIT = 20 * 1024 * 1024
-const TEXT_LIMIT = 1 * 1024 * 1024
-
-const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
-type ImageMimeType = typeof IMAGE_MIME_TYPES[number]
-
-const ALLOWED_MIME_TYPES = [
-  ...IMAGE_MIME_TYPES,
-  'application/pdf',
-  'text/plain',
-  'text/csv',
-] as const
-
-function isImageMime(t: string): t is ImageMimeType {
-  return (IMAGE_MIME_TYPES as readonly string[]).includes(t)
-}
-
-function isAllowedMimeType(t: string): boolean {
-  return (ALLOWED_MIME_TYPES as readonly string[]).includes(t)
-}
-
-async function extractPdfText(buffer: ArrayBuffer): Promise<string> {
-  try {
-    const pdfParse = (await import('pdf-parse')).default
-    const result = await pdfParse(Buffer.from(buffer))
-    return result.text ?? ''
-  } catch {
-    return ''
-  }
-}
 
 function checkRateLimit(userId: string): boolean {
   const now = Date.now()
   for (const [id, entry] of rateLimitMap) {
-    if (now > entry.resetAt) {
-      rateLimitMap.delete(id)
-      break // prune at most one stale entry per call, O(1) overhead
-    }
+    if (now > entry.resetAt) { rateLimitMap.delete(id); break }
   }
   const limit = rateLimitMap.get(userId)
   if (!limit || now > limit.resetAt) {
@@ -97,213 +43,61 @@ function checkRateLimit(userId: string): boolean {
 
 const RequestSchema = z.object({ storagePath: z.string().min(1) })
 
-// CORS: This route is intentionally same-origin only (Next.js default).
-// The mobile app calls it via EXPO_PUBLIC_API_BASE_URL which points to the
-// Next.js server — no cross-origin browser traffic is expected.
 export async function POST(req: NextRequest) {
-  const handlerStart = Date.now()
   try {
-    // Auth validation
     const authHeader = req.headers.get('authorization')
     if (!authHeader?.startsWith('Bearer ')) {
-      console.error('[ocr] auth_failure: missing or malformed Authorization header')
       return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 })
     }
     const token = authHeader.slice(7)
 
-    const {
-      data: { user },
-      error: userError,
-    } = await getSupabaseAdmin().auth.getUser(token)
+    const { data: { user }, error: userError } = await getSupabaseAdmin().auth.getUser(token)
     if (userError || !user) {
-      console.error('[ocr] auth_failure: invalid token', userError?.message)
       return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 })
     }
 
-    // Rate limiting — 20 req/hour per user
     if (!checkRateLimit(user.id)) {
-      console.error('[ocr] rate_limited: user=%s', user.id)
       return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 })
     }
 
-    // Request body validation
     const parseResult = RequestSchema.safeParse(await req.json())
     if (!parseResult.success) {
-      console.error('[ocr] invalid_request: body failed schema validation')
       return NextResponse.json({ error: 'INVALID_REQUEST' }, { status: 400 })
     }
     const { storagePath } = parseResult.data
 
-    // Storage path traversal prevention
     if (!storagePath.startsWith(user.id + '/')) {
-      console.error('[ocr] forbidden: path_traversal attempt user=%s path=%s', user.id, storagePath)
       return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
     }
 
-    // Image fetch — generate signed URL then fetch with timeout
-    const { data: signedUrlData, error: urlError } = await getSupabaseAdmin().storage
-      .from('receipts')
-      .createSignedUrl(storagePath, 120)
-    if (urlError || !signedUrlData?.signedUrl) {
-      console.error('[ocr] storage_error: failed to create signed URL for path=%s', storagePath, urlError?.message)
+    const { data: job, error: jobError } = await getSupabaseAdmin()
+      .from('receipt_parse_jobs')
+      .insert({ user_id: user.id, storage_path: storagePath })
+      .select('id')
+      .single()
+
+    if (jobError || !job) {
+      console.error('[ocr] job_insert_error:', jobError?.message)
       return NextResponse.json({ error: 'PARSE_FAILED' }, { status: 500 })
     }
 
-    const imageRes = await fetch(signedUrlData.signedUrl, {
-      signal: AbortSignal.timeout(25_000),
+    // Trigger the background function — it returns 202 immediately and processes async
+    const siteUrl = process.env.URL ?? 'http://localhost:8888'
+    await fetch(`${siteUrl}/.netlify/functions/ocr-process`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId: job.id }),
+      signal: AbortSignal.timeout(5_000),
+    }).catch((err) => {
+      // Non-fatal: job row exists, frontend can still poll.
+      console.error('[ocr] bg_trigger_error:', err)
     })
-    const imageBuffer = await imageRes.arrayBuffer()
-    const rawMime = (imageRes.headers.get('content-type') ?? '').split(';')[0].trim()
-    const mimeType = rawMime
 
-    if (!isAllowedMimeType(mimeType)) {
-      console.error('[ocr] unsupported_mime: %s', mimeType)
-      return NextResponse.json({ error: 'UNSUPPORTED_FILE_TYPE' }, { status: 400 })
-    }
-
-    if (mimeType === 'application/pdf' && imageBuffer.byteLength > PDF_LIMIT) {
-      return NextResponse.json({ error: 'FILE_TOO_LARGE' }, { status: 413 })
-    }
-    if ((mimeType === 'text/plain' || mimeType === 'text/csv') && imageBuffer.byteLength > TEXT_LIMIT) {
-      return NextResponse.json({ error: 'FILE_TOO_LARGE' }, { status: 413 })
-    }
-
-    let userMessage
-    if (isImageMime(mimeType)) {
-      const imageBase64 = Buffer.from(imageBuffer).toString('base64')
-      userMessage = buildReceiptUserMessage(imageBase64, mimeType)
-    } else if (mimeType === 'application/pdf') {
-      const extractedText = await extractPdfText(imageBuffer)
-      if (extractedText.trim().length >= 150) {
-        userMessage = buildReceiptTextMessage(extractedText)
-      } else {
-        const pdfBase64 = Buffer.from(imageBuffer).toString('base64')
-        userMessage = buildReceiptDocumentMessage(pdfBase64)
-      }
-    } else {
-      const text = Buffer.from(imageBuffer).toString('utf-8')
-      userMessage = buildReceiptTextMessage(text)
-    }
-
-    // Claude vision call
-    // Known risk: malicious receipt images could attempt prompt injection via
-    // embedded text. Mitigated by strict JSON-only system prompt and
-    // ParsedReceiptSchema validation on the response — freeform text output
-    // is rejected at the schema layer.
-    let message
-    try {
-      // Budget: 23.5s from handler start for the Claude call. Netlify's function
-      // limit is 26s from Lambda invocation; subtracting elapsed handler time
-      // (auth, image fetch, pdf extraction) plus a 2.5s safety margin ensures we
-      // return a clean response before the Lambda is force-killed.
-      const CLAUDE_BUDGET_MS = 23_500
-      const elapsed = Date.now() - handlerStart
-      const claudeTimeout = Math.max(5_000, CLAUDE_BUDGET_MS - elapsed)
-
-      const claudeCall = getAnthropic().messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 3000,
-        system: [{ type: 'text', text: RECEIPT_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-        messages: [userMessage],
-      })
-      const timeoutRejection = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('CLAUDE_TIMEOUT')), claudeTimeout)
-      )
-      message = await Promise.race([claudeCall, timeoutRejection])
-    } catch (anthropicErr) {
-      if (anthropicErr instanceof Error && anthropicErr.message === 'CLAUDE_TIMEOUT') {
-        const elapsed = Date.now() - handlerStart
-        console.error('[ocr] anthropic_timeout: Claude exceeded budget, elapsed=%dms, mime=%s', elapsed, mimeType)
-        return NextResponse.json({ error: 'TIMEOUT' }, { status: 504 })
-      }
-      const detail = anthropicErr instanceof Error ? anthropicErr.message : String(anthropicErr)
-      console.error('[ocr] anthropic_error:', detail)
-      return NextResponse.json({ error: 'PARSE_FAILED', detail }, { status: 500 })
-    }
-
-    const rawText = message.content[0].type === 'text' ? message.content[0].text : ''
-
-    // Strip markdown code fences that some model versions emit despite the prompt
-    const jsonText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
-
-    // Parse and validate response
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(jsonText)
-    } catch {
-      const truncated = message.stop_reason === 'max_tokens'
-      console.error('[ocr] parse_error: stop_reason=%s, first 200 chars: %s', message.stop_reason, jsonText.slice(0, 200))
-      return NextResponse.json({
-        error: 'PARSE_FAILED',
-        detail: truncated
-          ? 'response truncated (max_tokens reached) — receipt may have too many items'
-          : `non-JSON response: ${jsonText.slice(0, 300)}`,
-      }, { status: 500 })
-    }
-
-    // Handle Claude returning error object
-    if (typeof parsed === 'object' && parsed !== null && 'error' in parsed) {
-      return NextResponse.json({ error: 'NO_ITEMS_FOUND' }, { status: 422 })
-    }
-
-    const validationResult = ParsedReceiptSchema.safeParse(parsed)
-    if (!validationResult.success) {
-      console.error('[ocr] schema_error: Claude response failed schema validation', validationResult.error.flatten())
-      return NextResponse.json({ error: 'PARSE_FAILED', detail: JSON.stringify(validationResult.error.flatten()) }, { status: 500 })
-    }
-    const receipt = validationResult.data
-
-    // Discrepancy check
-    const itemsSum = receipt.items.reduce((sum, item) => sum + item.total_price, 0)
-    if (Math.abs(itemsSum - receipt.total) > 1.0) {
-      receipt.discrepancy_warning = true
-    }
-
-    // Normalization + enrichment — runs after schema validation, errors are non-fatal
-    const enrichmentProvider = getEnrichmentProvider()
-    const supabaseAdmin = getSupabaseAdmin()
-    const enrichedItems = await Promise.all(
-      receipt.items.map(async (item) => {
-        try {
-          const norm = await normalizeReceiptItem(item.name, user.id, receipt.store, supabaseAdmin)
-          let enrichment = null
-          if (norm.attributes.size_value || norm.normalizedName) {
-            enrichment = await enrichmentProvider.lookup({ name: norm.normalizedName })
-          }
-          return {
-            ...item,
-            raw_name: norm.rawName,
-            normalized_name: norm.normalizedName,
-            canonical_product_name: enrichment?.canonical_product_name ?? norm.canonical_product_name,
-            brand: enrichment?.brand ?? null,
-            size_value: norm.attributes.size_value,
-            size_unit: norm.attributes.size_unit,
-            flavor: norm.attributes.flavor,
-            variant: norm.attributes.variant,
-            gtin: enrichment?.gtin ?? null,
-            normalization_confidence: norm.confidence,
-            enrichment_confidence: enrichment?.confidence ?? null,
-            normalization_source: norm.source,
-            enrichment_source: enrichment?.source ?? null,
-            needs_review: norm.needs_review,
-            product_fingerprint: norm.fingerprint,
-          }
-        } catch (normErr) {
-          console.error('[ocr] normalization_error for item=%s:', item.name, normErr)
-          return { ...item, raw_name: item.name, needs_review: false }
-        }
-      }),
-    )
-
-    return NextResponse.json({ ...receipt, items: enrichedItems })
+    return NextResponse.json({ jobId: job.id }, { status: 202 })
   } catch (err) {
     if (err instanceof ServerMisconfiguredError) {
       console.error('[ocr] server_misconfigured:', err.message)
       return NextResponse.json({ error: 'SERVER_MISCONFIGURED' }, { status: 503 })
-    }
-    if (err instanceof Error && err.name === 'TimeoutError') {
-      console.error('[ocr] timeout: image fetch exceeded 25s')
-      return NextResponse.json({ error: 'TIMEOUT' }, { status: 504 })
     }
     console.error('[ocr] unhandled_error:', err)
     return NextResponse.json({ error: 'PARSE_FAILED' }, { status: 500 })
