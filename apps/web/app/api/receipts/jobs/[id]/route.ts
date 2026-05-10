@@ -32,23 +32,41 @@ export async function GET(
 
   const { id } = await params
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!UUID_RE.test(id)) {
+    return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404, headers: { 'Cache-Control': 'no-store' } })
+  }
+
   const { data: job, error: jobError } = await getSupabaseAdmin()
     .from('receipt_parse_jobs')
-    .select('id, user_id, status, result, error_code')
+    .select('id, user_id, status, result, error_code, updated_at')
     .eq('id', id)
     .single()
 
   if (jobError || !job) {
-    return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+    return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404, headers: { 'Cache-Control': 'no-store' } })
   }
 
   if (job.user_id !== user.id) {
-    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403, headers: { 'Cache-Control': 'no-store' } })
   }
 
-  return NextResponse.json({
-    status: job.status,
-    result: job.result ?? undefined,
-    errorCode: job.error_code ?? undefined,
-  })
+  if (job.status === 'processing') {
+    const ageMs = Date.now() - new Date(job.updated_at).getTime()
+    if (ageMs > 5 * 60 * 1000) {
+      return NextResponse.json(
+        { status: 'error', errorCode: 'STALLED' },
+        { headers: { 'Cache-Control': 'no-store' } },
+      )
+    }
+  }
+
+  return NextResponse.json(
+    {
+      status: job.status,
+      result: job.result ?? undefined,
+      errorCode: job.error_code ?? undefined,
+    },
+    { headers: { 'Cache-Control': 'no-store' } },
+  )
 }

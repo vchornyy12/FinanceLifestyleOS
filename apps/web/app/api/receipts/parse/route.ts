@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createHmac } from 'crypto'
 import { z } from 'zod'
 import type { Database } from '@/types/database'
 
@@ -42,7 +43,8 @@ function checkRateLimit(userId: string): boolean {
   return true
 }
 
-const RequestSchema = z.object({ storagePath: z.string().min(1) })
+const RequestSchema = z.object({ storagePath: z.string().min(1).max(512) })
+const SAFE_PATH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[\w\-.]{1,200}$/i
 
 export async function POST(req: NextRequest) {
   try {
@@ -58,7 +60,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (!checkRateLimit(user.id)) {
-      return NextResponse.json({ error: 'RATE_LIMITED' }, { status: 429 })
+      const entry = rateLimitMap.get(user.id)
+      const retryAfter = entry ? Math.ceil((entry.resetAt - Date.now()) / 1000) : 3600
+      return NextResponse.json(
+        { error: 'RATE_LIMITED' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter) } },
+      )
     }
 
     const parseResult = RequestSchema.safeParse(await req.json())
@@ -69,6 +76,10 @@ export async function POST(req: NextRequest) {
 
     if (!storagePath.startsWith(user.id + '/')) {
       return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+    }
+
+    if (!SAFE_PATH.test(storagePath)) {
+      return NextResponse.json({ error: 'INVALID_REQUEST' }, { status: 400 })
     }
 
     const { data: job, error: jobError } = await getSupabaseAdmin()
@@ -84,10 +95,12 @@ export async function POST(req: NextRequest) {
 
     // Trigger the background function — it returns 202 immediately and processes async
     const siteUrl = process.env.URL ?? 'http://localhost:8888'
+    const bgSecret = process.env.BG_TRIGGER_SECRET
+    const sig = bgSecret ? createHmac('sha256', bgSecret).update(job.id).digest('hex') : undefined
     await fetch(`${siteUrl}/.netlify/functions/ocr-process-background`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobId: job.id }),
+      body: JSON.stringify({ jobId: job.id, sig }),
       signal: AbortSignal.timeout(5_000),
     }).catch((err) => {
       // Non-fatal: job row exists, frontend can still poll.

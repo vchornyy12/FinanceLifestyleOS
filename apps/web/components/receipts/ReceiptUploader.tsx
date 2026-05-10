@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useTransition } from 'react'
+import { useState, useRef, useCallback, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { SaveReceiptInput } from '@/app/dashboard/receipts/upload/actions'
@@ -120,16 +120,22 @@ const EXT_MAP: Record<string, string> = {
 async function pollForResult(
   jobId: string,
   token: string,
+  signal: AbortSignal,
 ): Promise<ParsedReceiptResponse> {
   const MAX_POLLS = 60 // 60 × 2 s = 120 s max
   for (let i = 0; i < MAX_POLLS; i++) {
     await new Promise((r) => setTimeout(r, 2000))
+    if (signal.aborted) throw new Error('CANCELLED')
     const res = await fetch(`/api/receipts/jobs/${jobId}`, {
       headers: { Authorization: `Bearer ${token}` },
+      signal,
     })
     if (!res.ok) throw new Error('POLL_FAILED')
     const { status, result, errorCode } = await res.json()
-    if (status === 'done') return result as ParsedReceiptResponse
+    if (status === 'done') {
+      if (!result) throw new Error('OCR_FAILED')
+      return result as ParsedReceiptResponse
+    }
     if (status === 'error') throw new Error(errorCode ?? 'OCR_FAILED')
     // 'pending' or 'processing' → continue polling
   }
@@ -144,6 +150,9 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const inputRef = useRef<HTMLInputElement>(null)
+  const pollAbortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => () => { pollAbortRef.current?.abort() }, [])
 
   const processFile = useCallback(
     async (file: File) => {
@@ -199,11 +208,15 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
         const { jobId } = await parseRes.json()
         setPhase('parsing')
 
+        const abort = new AbortController()
+        pollAbortRef.current = abort
+
         let receipt: ParsedReceiptResponse
         try {
-          receipt = await pollForResult(jobId, session.access_token)
+          receipt = await pollForResult(jobId, session.access_token, abort.signal)
         } catch (pollErr) {
           const errMsg = pollErr instanceof Error ? pollErr.message : 'UNKNOWN'
+          if (errMsg === 'CANCELLED') return
           const msg =
             errMsg === 'NO_ITEMS_FOUND'
               ? 'No items found on this receipt. Try a clearer photo.'
@@ -211,7 +224,7 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
                 ? "This file type isn't supported."
                 : errMsg === 'FILE_TOO_LARGE'
                   ? 'File is too large.'
-                  : errMsg === 'TIMEOUT'
+                  : errMsg === 'TIMEOUT' || errMsg === 'STALLED'
                     ? 'OCR timed out. The receipt may be too complex — try a clearer photo.'
                     : `OCR failed (${errMsg}). Please try again.`
           setError(msg)

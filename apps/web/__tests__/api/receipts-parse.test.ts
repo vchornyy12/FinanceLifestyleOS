@@ -34,7 +34,7 @@ vi.stubGlobal('fetch', mockFetch)
 
 const { POST } = await import('@/app/api/receipts/parse/route')
 
-const VALID_USER_ID = 'user-abc-123'
+const VALID_USER_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const VALID_TOKEN = 'valid-token'
 const VALID_JOB_ID = 'job-uuid-111'
 

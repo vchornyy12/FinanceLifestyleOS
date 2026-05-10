@@ -22,10 +22,15 @@ vi.mock('@supabase/supabase-js', () => ({
       if (table === 'receipt_parse_jobs') {
         return {
           select: () => ({ eq: () => ({ single: mockJobSelect }) }),
-          update: (data: unknown) => ({
-            _data: data,
-            eq: () => Promise.resolve({ error: null }),
-          }),
+          update: (data: unknown) => {
+            const chain: Record<string, unknown> = {
+              _data: data,
+              eq: () => chain,
+              select: () => chain,
+              single: () => Promise.resolve({ data: { id: VALID_JOB_ID }, error: null }),
+            }
+            return chain
+          },
         }
       }
       return {}

@@ -1,4 +1,5 @@
 import type { Config } from '@netlify/functions'
+import { createHmac, timingSafeEqual } from 'crypto'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import {
@@ -13,6 +14,7 @@ import { getEnrichmentProvider } from '../../lib/enrichment/factory'
 
 const PDF_LIMIT = 20 * 1024 * 1024
 const TEXT_LIMIT = 1 * 1024 * 1024
+const IMAGE_LIMIT = 5 * 1024 * 1024
 const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 type ImageMimeType = (typeof IMAGE_MIME_TYPES)[number]
 
@@ -54,12 +56,15 @@ export async function processOcrJob(jobId: string): Promise<void> {
     return
   }
 
-  const { error: processingUpdateError } = await supabase
+  const { data: claimed, error: processingUpdateError } = await supabase
     .from('receipt_parse_jobs')
     .update({ status: 'processing', updated_at: new Date().toISOString() })
     .eq('id', jobId)
-  if (processingUpdateError) {
-    console.error('[ocr-bg] processing_update_error: jobId=%s', jobId, processingUpdateError.message)
+    .eq('status', 'pending')
+    .select('id')
+    .single()
+  if (processingUpdateError || !claimed) {
+    console.log('[ocr-bg] job_already_claimed_or_gone: jobId=%s', jobId)
     return
   }
 
@@ -68,6 +73,7 @@ export async function processOcrJob(jobId: string): Promise<void> {
       .from('receipt_parse_jobs')
       .update({ status: 'error', error_code: errorCode, updated_at: new Date().toISOString() })
       .eq('id', jobId)
+      .eq('status', 'processing')
   }
 
   try {
@@ -96,6 +102,9 @@ export async function processOcrJob(jobId: string): Promise<void> {
       return failJob('FILE_TOO_LARGE')
     }
     if ((rawMime === 'text/plain' || rawMime === 'text/csv') && imageBuffer.byteLength > TEXT_LIMIT) {
+      return failJob('FILE_TOO_LARGE')
+    }
+    if (isImageMime(rawMime) && imageBuffer.byteLength > IMAGE_LIMIT) {
       return failJob('FILE_TOO_LARGE')
     }
 
@@ -203,8 +212,28 @@ export async function processOcrJob(jobId: string): Promise<void> {
   }
 }
 
+const JOB_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 async function handler(req: Request): Promise<Response> {
-  const { jobId } = await req.json()
+  let body: unknown
+  try { body = await req.json() } catch { return new Response('Bad Request', { status: 400 }) }
+
+  if (typeof body !== 'object' || body === null) return new Response('Bad Request', { status: 400 })
+  const { jobId, sig } = body as { jobId?: unknown; sig?: unknown }
+
+  if (typeof jobId !== 'string' || !JOB_ID_RE.test(jobId)) {
+    return new Response('Bad Request', { status: 400 })
+  }
+
+  const bgSecret = process.env.BG_TRIGGER_SECRET
+  if (bgSecret) {
+    const expected = createHmac('sha256', bgSecret).update(jobId).digest()
+    const provided = typeof sig === 'string' ? Buffer.from(sig, 'hex') : Buffer.alloc(0)
+    if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+      return new Response('Forbidden', { status: 403 })
+    }
+  }
+
   await processOcrJob(jobId)
   return new Response(null, { status: 202 })
 }

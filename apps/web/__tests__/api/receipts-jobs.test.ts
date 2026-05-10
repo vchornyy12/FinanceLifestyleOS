@@ -21,8 +21,8 @@ vi.mock('@supabase/supabase-js', () => ({
 
 const { GET } = await import('@/app/api/receipts/jobs/[id]/route')
 
-const VALID_USER_ID = 'user-abc-123'
-const VALID_JOB_ID = 'job-uuid-111'
+const VALID_USER_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+const VALID_JOB_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 
 function makeRequest(authHeader?: string): Request {
   return new Request(`http://localhost/api/receipts/jobs/${VALID_JOB_ID}`, {
@@ -58,7 +58,7 @@ describe('GET /api/receipts/jobs/[id]', () => {
   it('returns 403 when job belongs to another user', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: VALID_USER_ID } }, error: null })
     mockJobFetch.mockResolvedValue({
-      data: { id: VALID_JOB_ID, user_id: 'other-user', status: 'done', result: null, error_code: null },
+      data: { id: VALID_JOB_ID, user_id: 'other-user', status: 'done', result: null, error_code: null, updated_at: new Date().toISOString() },
       error: null,
     })
     const res = await GET(makeRequest('Bearer t') as never, makeParams() as never)
@@ -68,7 +68,7 @@ describe('GET /api/receipts/jobs/[id]', () => {
   it('returns pending status', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: VALID_USER_ID } }, error: null })
     mockJobFetch.mockResolvedValue({
-      data: { id: VALID_JOB_ID, user_id: VALID_USER_ID, status: 'pending', result: null, error_code: null },
+      data: { id: VALID_JOB_ID, user_id: VALID_USER_ID, status: 'pending', result: null, error_code: null, updated_at: new Date().toISOString() },
       error: null,
     })
     const res = await GET(makeRequest('Bearer t') as never, makeParams() as never)
@@ -80,7 +80,7 @@ describe('GET /api/receipts/jobs/[id]', () => {
     const mockResult = { store: 'Biedronka', items: [], total: 10.00, date: '2026-04-01', confidence: 'high' }
     mockGetUser.mockResolvedValue({ data: { user: { id: VALID_USER_ID } }, error: null })
     mockJobFetch.mockResolvedValue({
-      data: { id: VALID_JOB_ID, user_id: VALID_USER_ID, status: 'done', result: mockResult, error_code: null },
+      data: { id: VALID_JOB_ID, user_id: VALID_USER_ID, status: 'done', result: mockResult, error_code: null, updated_at: new Date().toISOString() },
       error: null,
     })
     const res = await GET(makeRequest('Bearer t') as never, makeParams() as never)
@@ -93,7 +93,7 @@ describe('GET /api/receipts/jobs/[id]', () => {
   it('returns error status with errorCode', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: VALID_USER_ID } }, error: null })
     mockJobFetch.mockResolvedValue({
-      data: { id: VALID_JOB_ID, user_id: VALID_USER_ID, status: 'error', result: null, error_code: 'NO_ITEMS_FOUND' },
+      data: { id: VALID_JOB_ID, user_id: VALID_USER_ID, status: 'error', result: null, error_code: 'NO_ITEMS_FOUND', updated_at: new Date().toISOString() },
       error: null,
     })
     const res = await GET(makeRequest('Bearer t') as never, makeParams() as never)
