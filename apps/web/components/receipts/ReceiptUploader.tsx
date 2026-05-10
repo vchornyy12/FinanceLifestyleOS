@@ -147,6 +147,7 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
 
   const processFile = useCallback(
     async (file: File) => {
+      if (phase !== 'idle') return
       const ACCEPTED_MIME = /^(image\/(jpeg|png|webp)|application\/pdf|text\/(plain|csv))$/
       if (!ACCEPTED_MIME.test(file.type)) {
         setError('Please upload a JPEG, PNG, WebP, PDF, TXT, or CSV file.')
@@ -259,7 +260,7 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
         console.error('[receipt-upload]', err)
       }
     },
-    [wallets, categories],
+    [wallets, categories, phase],
   )
 
   const handleDrop = useCallback(
@@ -489,7 +490,7 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
                 const wasNormalized = item.normalized_name !== null && item.raw_name !== item.display_name
                 const rowHighlight = item.needs_review ? 'border-l-2 border-l-amber-400' : ''
                 return (
-                  <tr key={i} className={rowHighlight}>
+                  <tr key={`${item.raw_name ?? item.display_name}-${i}`} className={rowHighlight}>
                     <td className="px-4 py-2.5">
                       <div className="flex flex-col gap-0.5">
                         <div className="flex items-center gap-2">
