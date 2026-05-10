@@ -45,6 +45,7 @@ AS $$
     SELECT m.category_id, m.confidence, 3 AS tier
     FROM public.receipt_item_name_mappings m
     WHERE m.user_id = p_user_id
+      AND p_normalized_name IS NOT NULL
       AND m.normalized_name = p_normalized_name
       AND m.category_id IS NOT NULL
 
@@ -84,7 +85,7 @@ BEGIN
   VALUES (
     p_user_id,
     upper(p_raw_name),
-    p_normalized_name,
+    COALESCE(p_normalized_name, upper(p_raw_name)),
     p_retailer,
     p_category_id,
     CASE WHEN p_is_correction THEN 1.0 ELSE 0.6 END,
