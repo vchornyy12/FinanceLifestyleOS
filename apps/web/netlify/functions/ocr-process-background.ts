@@ -128,10 +128,15 @@ export async function processOcrJob(jobId: string): Promise<void> {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 3000,
+      max_tokens: 8192,
       system: [{ type: 'text', text: RECEIPT_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [userMessage],
     })
+
+    if (message.stop_reason === 'max_tokens') {
+      console.error('[ocr-bg] max_tokens_exceeded: jobId=%s', jobId)
+      return failJob('PARSE_FAILED')
+    }
 
     const rawText = message.content[0].type === 'text' ? message.content[0].text : ''
     const jsonText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
