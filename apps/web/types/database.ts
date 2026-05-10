@@ -171,8 +171,8 @@ export interface Database {
         Relationships: []
       }
     }
-    Views: {}
-    Functions: {}
+    Views: Record<string, never>
+    Functions: Record<string, never>
     Enums: {
       transaction_source: TransactionSource
       transaction_type: TransactionType

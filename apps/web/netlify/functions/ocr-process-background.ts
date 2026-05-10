@@ -203,10 +203,12 @@ export async function processOcrJob(jobId: string): Promise<void> {
   }
 }
 
-export default async (req: Request): Promise<Response> => {
+async function handler(req: Request): Promise<Response> {
   const { jobId } = await req.json()
   await processOcrJob(jobId)
   return new Response(null, { status: 202 })
 }
+
+export default handler
 
 export const config: Config = {}
