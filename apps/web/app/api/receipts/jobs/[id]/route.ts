@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database'
 
-let _supabaseAdmin: ReturnType<typeof createClient> | null = null
+let _supabaseAdmin: ReturnType<typeof createClient<Database>> | null = null
 
 function getSupabaseAdmin() {
   if (!_supabaseAdmin) {
-    _supabaseAdmin = createClient(
+    _supabaseAdmin = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { autoRefreshToken: false, persistSession: false } },

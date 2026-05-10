@@ -10,6 +10,10 @@
  *   supabase/migrations/006_category_tree.sql
  *
  * Pattern: Database["public"]["Tables"][TableName]["Row" | "Insert" | "Update"]
+ *
+ * NOTE: Row/Insert/Update shapes use `type` (not `interface`) so that TypeScript
+ * can infer an implicit index signature and they satisfy Record<string, unknown>
+ * as required by @supabase/postgrest-js GenericTable constraint (strict mode).
  */
 
 export type TransactionSource = 'manual' | 'bank_sync' | 'ocr'
@@ -20,7 +24,7 @@ export type CategoryType = 'expense' | 'income' | 'any'
 // Table row shapes
 // ---------------------------------------------------------------------------
 
-export interface ProfileRow {
+export type ProfileRow = {
   id: string
   full_name: string | null
   avatar_url: string | null
@@ -29,7 +33,7 @@ export interface ProfileRow {
   updated_at: string
 }
 
-export interface CategoryRow {
+export type CategoryRow = {
   id: string
   user_id: string | null
   name: string
@@ -39,7 +43,7 @@ export interface CategoryRow {
   created_at: string
 }
 
-export interface TransactionRow {
+export type TransactionRow = {
   id: string
   user_id: string
   amount: string
@@ -61,7 +65,7 @@ export interface TransactionRow {
 // Insert shapes (required fields only; generated fields optional)
 // ---------------------------------------------------------------------------
 
-export interface ProfileInsert {
+export type ProfileInsert = {
   id: string
   full_name?: string | null
   avatar_url?: string | null
@@ -69,7 +73,7 @@ export interface ProfileInsert {
   updated_at?: string
 }
 
-export interface CategoryInsert {
+export type CategoryInsert = {
   id?: string
   user_id?: string | null
   name: string
@@ -79,7 +83,7 @@ export interface CategoryInsert {
   created_at?: string
 }
 
-export interface TransactionInsert {
+export type TransactionInsert = {
   id?: string
   user_id: string
   amount: string
@@ -108,6 +112,34 @@ export type CategoryUpdate = Partial<Omit<CategoryRow, 'id' | 'user_id' | 'creat
 export type TransactionUpdate = Partial<Omit<TransactionRow, 'id' | 'user_id' | 'created_at'>>
 
 // ---------------------------------------------------------------------------
+// ReceiptParseJob types (migration 015)
+// ---------------------------------------------------------------------------
+
+export type OcrJobStatus = 'pending' | 'processing' | 'done' | 'error'
+
+export type ReceiptParseJobRow = {
+  id: string
+  user_id: string
+  storage_path: string
+  status: OcrJobStatus
+  result: Record<string, unknown> | null
+  error_code: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type ReceiptParseJobInsert = {
+  id?: string
+  user_id: string
+  storage_path: string
+  status?: OcrJobStatus
+  result?: Record<string, unknown> | null
+  error_code?: string | null
+}
+
+export type ReceiptParseJobUpdate = Partial<Omit<ReceiptParseJobRow, 'id' | 'user_id' | 'created_at'>>
+
+// ---------------------------------------------------------------------------
 // Database interface (Supabase-style generated types pattern)
 // ---------------------------------------------------------------------------
 
@@ -118,18 +150,29 @@ export interface Database {
         Row: ProfileRow
         Insert: ProfileInsert
         Update: ProfileUpdate
+        Relationships: []
       }
       categories: {
         Row: CategoryRow
         Insert: CategoryInsert
         Update: CategoryUpdate
+        Relationships: []
       }
       transactions: {
         Row: TransactionRow
         Insert: TransactionInsert
         Update: TransactionUpdate
+        Relationships: []
+      }
+      receipt_parse_jobs: {
+        Row: ReceiptParseJobRow
+        Insert: ReceiptParseJobInsert
+        Update: ReceiptParseJobUpdate
+        Relationships: []
       }
     }
+    Views: {}
+    Functions: {}
     Enums: {
       transaction_source: TransactionSource
       transaction_type: TransactionType
@@ -152,7 +195,7 @@ export type Transaction = TransactionRow
 
 export type ReceiptItemConfidence = 'high' | 'low'
 
-export interface ReceiptItemRow {
+export type ReceiptItemRow = {
   id: string
   transaction_id: string
   user_id: string
@@ -165,7 +208,7 @@ export interface ReceiptItemRow {
   created_at: string
 }
 
-export interface ReceiptItemInsert {
+export type ReceiptItemInsert = {
   id?: string
   transaction_id: string
   user_id: string
@@ -185,7 +228,7 @@ export type ReceiptItemUpdate = Partial<Omit<ReceiptItemRow, 'id' | 'transaction
 
 export type WalletType = 'cash' | 'debit' | 'credit_card' | 'savings' | 'investment' | 'crypto'
 
-export interface WalletRow {
+export type WalletRow = {
   id: string
   user_id: string
   name: string
@@ -199,6 +242,7 @@ export interface WalletRow {
 
 export type WalletInsert = Omit<WalletRow, 'id' | 'user_id' | 'created_at' | 'updated_at'>
 export type WalletUpdate = Partial<WalletInsert>
-export interface WalletWithBalance extends WalletRow {
+
+export type WalletWithBalance = WalletRow & {
   balance: number
 }

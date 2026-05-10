@@ -209,6 +209,4 @@ export default async (req: Request): Promise<Response> => {
   return new Response(null, { status: 202 })
 }
 
-export const config: Config = {
-  background: true,
-}
+export const config: Config = {}

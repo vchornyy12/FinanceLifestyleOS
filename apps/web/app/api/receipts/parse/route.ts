@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
+import type { Database } from '@/types/database'
 
-let _supabaseAdmin: ReturnType<typeof createClient> | null = null
+let _supabaseAdmin: ReturnType<typeof createClient<Database>> | null = null
 
 class ServerMisconfiguredError extends Error {
   constructor(missing: string) {
@@ -11,13 +12,13 @@ class ServerMisconfiguredError extends Error {
   }
 }
 
-function getSupabaseAdmin(): ReturnType<typeof createClient> {
+function getSupabaseAdmin(): ReturnType<typeof createClient<Database>> {
   if (!_supabaseAdmin) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY
     if (!url) throw new ServerMisconfiguredError('NEXT_PUBLIC_SUPABASE_URL')
     if (!key) throw new ServerMisconfiguredError('SUPABASE_SERVICE_ROLE_KEY')
-    _supabaseAdmin = createClient(url, key, {
+    _supabaseAdmin = createClient<Database>(url, key, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
   }
@@ -29,7 +30,7 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
 function checkRateLimit(userId: string): boolean {
   const now = Date.now()
   for (const [id, entry] of rateLimitMap) {
-    if (now > entry.resetAt) { rateLimitMap.delete(id); break }
+    if (now > entry.resetAt) rateLimitMap.delete(id)
   }
   const limit = rateLimitMap.get(userId)
   if (!limit || now > limit.resetAt) {
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
 
     // Trigger the background function — it returns 202 immediately and processes async
     const siteUrl = process.env.URL ?? 'http://localhost:8888'
-    await fetch(`${siteUrl}/.netlify/functions/ocr-process`, {
+    await fetch(`${siteUrl}/.netlify/functions/ocr-process-background`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobId: job.id }),

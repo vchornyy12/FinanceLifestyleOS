@@ -45,7 +45,7 @@ vi.stubGlobal('fetch', mockFetch)
 const mockPdfParse = vi.fn()
 vi.mock('pdf-parse', () => ({ default: mockPdfParse }))
 
-const { processOcrJob } = await import('../../../netlify/functions/ocr-process')
+const { processOcrJob } = await import('../../netlify/functions/ocr-process-background')
 
 const VALID_JOB_ID = 'job-uuid-111'
 const VALID_USER_ID = 'user-abc-123'
