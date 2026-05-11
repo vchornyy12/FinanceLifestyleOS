@@ -35,6 +35,8 @@ interface ParsedItem {
   enrichment_source?: string | null
   needs_review?: boolean
   product_fingerprint?: string | null
+  history_category_id?: string | null
+  history_category_confidence?: number | null
 }
 
 interface ParsedReceiptResponse {
@@ -68,6 +70,8 @@ interface ReviewItem {
   enrichment_source: string | null
   needs_review: boolean
   product_fingerprint: string | null
+  history_category_id: string | null
+  user_changed_category: boolean
 }
 
 interface ReviewState {
@@ -241,13 +245,16 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
           items: receipt.items.map((item) => {
             const raw = item.raw_name ?? item.name
             const displayName = item.canonical_product_name ?? item.normalized_name ?? item.name
+            const initialCategoryId = item.history_category_id
+              ? item.history_category_id
+              : matchCategory(item.category, categories)
             return {
               display_name: displayName,
               raw_name: raw,
               quantity: item.quantity,
               unit_price: item.unit_price,
               total_price: item.total_price,
-              category_id: matchCategory(item.category, categories),
+              category_id: initialCategoryId,
               confidence: item.confidence,
               normalized_name: item.normalized_name ?? null,
               canonical_product_name: item.canonical_product_name ?? null,
@@ -263,6 +270,8 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
               enrichment_source: item.enrichment_source ?? null,
               needs_review: item.needs_review ?? false,
               product_fingerprint: item.product_fingerprint ?? null,
+              history_category_id: item.history_category_id ?? null,
+              user_changed_category: false,
             }
           }),
         })
@@ -299,7 +308,11 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
     setReview((prev) => {
       if (!prev) return prev
       const items = [...prev.items]
-      items[index] = { ...items[index], ...patch }
+      const current = items[index]
+      if (patch.category_id !== undefined) {
+        patch.user_changed_category = patch.category_id !== current.history_category_id
+      }
+      items[index] = { ...current, ...patch }
       return { ...prev, items }
     })
   }, [])
@@ -335,6 +348,8 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
           product_fingerprint: item.product_fingerprint,
           needs_review: false,
           user_confirmed: item.normalized_name !== null,
+          history_category_id: item.history_category_id,
+          user_changed_category: item.user_changed_category,
         })),
       })
 
@@ -543,6 +558,11 @@ export default function ReceiptUploader({ wallets, categories, onSave }: Props) 
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
+                      {item.history_category_id && !item.user_changed_category && (
+                        <span className="mt-0.5 block text-xs text-zinc-400 dark:text-zinc-500">
+                          from history
+                        </span>
+                      )}
                     </td>
                   </tr>
                 )
