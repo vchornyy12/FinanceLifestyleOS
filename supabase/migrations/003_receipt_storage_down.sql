@@ -8,3 +8,4 @@ DROP POLICY IF EXISTS "Users can delete their own receipts" ON storage.objects;
 DELETE FROM storage.buckets WHERE id = 'receipts';
 
 ALTER TABLE public.transactions DROP COLUMN IF EXISTS receipt_url;
+
