@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { upsertCategoryLearning } from '@/lib/supabase/queries/categoryLearning'
 
 export interface ReviewedItem {
   name: string
@@ -9,7 +10,6 @@ export interface ReviewedItem {
   total_price: number
   category_id: string | null
   confidence: 'high' | 'low'
-  // Enrichment fields — populated by parse route, passed through review UI
   raw_name?: string
   normalized_name?: string | null
   canonical_product_name?: string | null
@@ -27,6 +27,9 @@ export interface ReviewedItem {
   needs_review?: boolean
   user_confirmed?: boolean
   product_fingerprint?: string | null
+  // Category learning fields
+  history_category_id?: string | null
+  user_changed_category?: boolean
 }
 
 export interface SaveReceiptInput {
@@ -74,7 +77,6 @@ export async function saveReceipt(
     total_price: item.total_price,
     category_id: item.category_id || null,
     confidence: item.confidence,
-    // Enrichment fields
     raw_name: item.raw_name ?? item.name,
     normalized_name: item.normalized_name ?? null,
     canonical_product_name: item.canonical_product_name ?? null,
@@ -99,25 +101,24 @@ export async function saveReceipt(
     return { error: `Failed to save items: ${itemsError.message}` }
   }
 
-  // Persist user-confirmed corrections into the learning table
-  const corrections = input.items.filter((item) => item.user_confirmed && item.normalized_name)
-  if (corrections.length > 0) {
-    const mappings = corrections.map((item) => ({
-      user_id: user.id,
-      retailer: input.store || null,
-      raw_name: (item.raw_name ?? item.name).toUpperCase(),
-      normalized_name: item.normalized_name!,
-      canonical_product_name: item.canonical_product_name ?? null,
-      brand: item.brand ?? null,
-      source: 'user' as const,
-      confidence: 1.0,
-    }))
-    // Upsert — on conflict update usage_count and last_used_at
-    await supabase.from('receipt_item_name_mappings').upsert(mappings, {
-      onConflict: 'user_id,retailer,raw_name',
-      ignoreDuplicates: false,
-    })
-  }
+  // Category learning: upsert for every item that has a raw_name and a category.
+  // Corrections (user_changed_category=true) are weighted higher than passive saves.
+  const learningItems = input.items.filter(
+    (item) => item.category_id && (item.raw_name ?? item.name),
+  )
+  await Promise.all(
+    learningItems.map((item) =>
+      upsertCategoryLearning(
+        supabase,
+        user.id,
+        item.raw_name ?? item.name,
+        item.normalized_name ?? null,
+        input.store || null,
+        item.category_id!,
+        item.user_changed_category === true,
+      ),
+    ),
+  )
 
   return {}
 }
