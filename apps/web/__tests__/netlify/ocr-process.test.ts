@@ -13,11 +13,13 @@ const mockCreateSignedUrl = vi.fn()
 const mockMessagesCreate = vi.fn()
 const mockJobSelect = vi.fn()
 const mockJobUpdate = vi.fn()
+const mockRpc = vi.fn()
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
     auth: { getUser: mockGetUser },
     storage: { from: () => ({ createSignedUrl: mockCreateSignedUrl }) },
+    rpc: mockRpc,
     from: (table: string) => {
       if (table === 'receipt_parse_jobs') {
         return {
@@ -49,6 +51,16 @@ vi.stubGlobal('fetch', mockFetch)
 
 const mockPdfParse = vi.fn()
 vi.mock('pdf-parse', () => ({ default: mockPdfParse }))
+
+const mockNormalizeReceiptItem = vi.fn()
+vi.mock('../../lib/normalization/normalize', () => ({
+  normalizeReceiptItem: (...args: unknown[]) => mockNormalizeReceiptItem(...args),
+}))
+
+const mockEnrichmentLookup = vi.fn()
+vi.mock('../../lib/enrichment/factory', () => ({
+  getEnrichmentProvider: () => ({ lookup: mockEnrichmentLookup }),
+}))
 
 const { processOcrJob } = await import('../../netlify/functions/ocr-process-background')
 
@@ -83,6 +95,18 @@ function setupHappyPath() {
     stop_reason: 'end_turn',
   })
   mockPdfParse.mockResolvedValue({ text: '' })
+  mockRpc.mockResolvedValue({ data: [], error: null })
+  mockNormalizeReceiptItem.mockResolvedValue({
+    rawName: 'Chleb',
+    normalizedName: 'chleb',
+    canonical_product_name: null,
+    attributes: { size_value: null, size_unit: null, flavor: null, variant: null },
+    fingerprint: 'abc123',
+    confidence: 0.9,
+    source: 'rule',
+    needs_review: false,
+  })
+  mockEnrichmentLookup.mockResolvedValue(null)
 }
 
 describe('processOcrJob', () => {
@@ -138,5 +162,14 @@ describe('processOcrJob', () => {
     mockJobSelect.mockResolvedValue({ data: null, error: new Error('not found') })
     await expect(processOcrJob('nonexistent')).resolves.toBeUndefined()
     expect(mockMessagesCreate).not.toHaveBeenCalled()
+  })
+
+  it('calls lookup_category_from_history for each item after normalization', async () => {
+    setupHappyPath()
+    mockRpc.mockResolvedValue({ data: [{ category_id: 'cat-uuid', confidence: 0.9, tier: 1 }], error: null })
+    await processOcrJob(VALID_JOB_ID)
+    expect(mockRpc).toHaveBeenCalledWith('lookup_category_from_history', expect.objectContaining({
+      p_user_id: VALID_USER_ID,
+    }))
   })
 })

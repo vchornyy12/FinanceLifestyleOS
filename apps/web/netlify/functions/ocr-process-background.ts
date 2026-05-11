@@ -11,6 +11,7 @@ import {
 import { ParsedReceiptSchema } from '../../lib/ocr/receiptSchema'
 import { normalizeReceiptItem } from '../../lib/normalization/normalize'
 import { getEnrichmentProvider } from '../../lib/enrichment/factory'
+import { lookupCategoryFromHistory } from '../../lib/supabase/queries/categoryLearning'
 
 const PDF_LIMIT = 20 * 1024 * 1024
 const TEXT_LIMIT = 1 * 1024 * 1024
@@ -174,6 +175,14 @@ export async function processOcrJob(jobId: string): Promise<void> {
           if (norm.attributes.size_value || norm.normalizedName) {
             enrichment = await enrichmentProvider.lookup({ name: norm.normalizedName })
           }
+          const historyMatch = await lookupCategoryFromHistory(
+            supabase,
+            job.user_id,
+            norm.rawName,
+            norm.normalizedName,
+            receipt.store ?? null,
+          )
+
           return {
             ...item,
             raw_name: norm.rawName,
@@ -191,6 +200,8 @@ export async function processOcrJob(jobId: string): Promise<void> {
             enrichment_source: enrichment?.source ?? null,
             needs_review: norm.needs_review,
             product_fingerprint: norm.fingerprint,
+            history_category_id: historyMatch?.category_id ?? null,
+            history_category_confidence: historyMatch?.confidence ?? null,
           }
         } catch {
           return { ...item, raw_name: item.name, needs_review: true }
