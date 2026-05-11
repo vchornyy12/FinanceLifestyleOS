@@ -10,6 +10,9 @@ export const ReceiptItemSchema = z.object({
   // Optional fields populated by normalization pipeline after OCR
   raw_name: z.string().optional(),
   normalized_name: z.string().optional(),
+  // Populated by category history lookup after normalization
+  history_category_id: z.string().uuid().nullable().optional(),
+  history_category_confidence: z.number().nullable().optional(),
 })
 
 export const ParsedReceiptSchema = z.object({
