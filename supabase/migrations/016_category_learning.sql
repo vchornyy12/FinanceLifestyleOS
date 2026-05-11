@@ -18,12 +18,20 @@ CREATE OR REPLACE FUNCTION public.lookup_category_from_history(
   p_retailer        text DEFAULT NULL
 )
 RETURNS TABLE (category_id uuid, confidence numeric, tier int)
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT category_id, confidence, tier
+BEGIN
+  -- Allow service-role (background function): auth.uid() is NULL for service-role.
+  -- Reject authenticated clients that pass a different user's ID.
+  IF auth.uid() IS NOT NULL AND auth.uid() <> p_user_id THEN
+    RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  SELECT sub.category_id, sub.confidence, sub.tier
   FROM (
     SELECT m.category_id, m.confidence, 1 AS tier
     FROM public.receipt_item_name_mappings m
@@ -61,8 +69,9 @@ AS $$
       AND m.normalized_name IS NOT NULL
       AND similarity(m.normalized_name, p_normalized_name) > 0.65
   ) sub
-  ORDER BY tier, confidence DESC
+  ORDER BY sub.tier ASC, sub.confidence DESC NULLS LAST
   LIMIT 1;
+END;
 $$;
 
 -- 4. upsert_category_learning
@@ -80,6 +89,12 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+  -- Allow service-role (background function): auth.uid() is NULL for service-role.
+  -- Reject authenticated clients that pass a different user's ID.
+  IF auth.uid() IS NOT NULL AND auth.uid() <> p_user_id THEN
+    RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
+  END IF;
+
   INSERT INTO public.receipt_item_name_mappings
     (user_id, raw_name, normalized_name, retailer, category_id, confidence, source, usage_count)
   VALUES (
@@ -107,3 +122,9 @@ BEGIN
         updated_at   = now();
 END;
 $$;
+
+-- 5. Explicit grants — restrict execution to authenticated users and service_role only
+REVOKE EXECUTE ON FUNCTION public.lookup_category_from_history(uuid, text, text, text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.upsert_category_learning(uuid, text, text, text, uuid, boolean) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.lookup_category_from_history(uuid, text, text, text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.upsert_category_learning(uuid, text, text, text, uuid, boolean) TO authenticated, service_role;

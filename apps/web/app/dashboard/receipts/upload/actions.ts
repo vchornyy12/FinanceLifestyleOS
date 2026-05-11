@@ -106,7 +106,7 @@ export async function saveReceipt(
   const learningItems = input.items.filter(
     (item) => item.category_id && (item.raw_name ?? item.name),
   )
-  await Promise.all(
+  await Promise.allSettled(
     learningItems.map((item) =>
       upsertCategoryLearning(
         supabase,
