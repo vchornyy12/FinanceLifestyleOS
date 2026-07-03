@@ -61,6 +61,9 @@ ${txLines || 'No transactions yet.'}
 ## Recent receipts (line items)
 ${receiptBlocks || 'No receipts scanned yet.'}
 
+The receipt list above covers only the most recent receipts. For older purchases or
+specific product searches, call the query_receipt_items tool with a date range.
+
 ## Top products this month (from scanned receipts)
 ${productLines || 'No receipt data yet.'}
 

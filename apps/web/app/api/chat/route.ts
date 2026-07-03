@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server'
 import OpenAI from 'openai'
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
+import { receiptQueryTool, executeReceiptQuery, assembleToolCallDeltas, type ToolCallDelta } from '@/lib/chat/tools'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseJSClient } from '@supabase/supabase-js'
 import { getMonthlyMetrics } from '@/lib/supabase/queries/metrics'
@@ -133,32 +135,87 @@ export async function POST(req: NextRequest) {
 
     const model = process.env.NVIDIA_MODEL
     if (!model) throw new Error('Missing env var: NVIDIA_MODEL')
-    const stream = await getOpenAI().chat.completions.create({
-      model,
-      stream: true,
-      max_tokens: 16384,
-      temperature: 0.7,
-      top_p: 1,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...orderedHistory,
-        { role: 'user', content: message },
-      ],
-    })
 
+    const conversation: ChatCompletionMessageParam[] = [
+      { role: 'system', content: systemPrompt },
+      ...(orderedHistory as ChatCompletionMessageParam[]),
+      { role: 'user', content: message },
+    ]
+
+    const MAX_TOOL_ROUNDS = 3
     let assistantReply = ''
+
+    async function createStream(withTools: boolean) {
+      return getOpenAI().chat.completions.create({
+        model: model!,
+        stream: true,
+        max_tokens: 16384,
+        temperature: 0.7,
+        top_p: 1,
+        messages: conversation,
+        ...(withTools ? { tools: [receiptQueryTool] } : {}),
+      })
+    }
 
     const readable = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder()
         try {
-          for await (const chunk of stream) {
-            const text = chunk.choices[0]?.delta?.content ?? ''
-            if (text) {
-              assistantReply += text
-              controller.enqueue(encoder.encode(text))
+          let toolsEnabled = true
+
+          for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+            // Last permitted round runs without tools so the user always gets prose.
+            const withTools = toolsEnabled && round < MAX_TOOL_ROUNDS
+
+            let stream
+            try {
+              stream = await createStream(withTools)
+            } catch (err) {
+              if (!withTools) throw err
+              // Model/provider rejected the tools param — degrade gracefully.
+              console.error('[chat] tools_unsupported, retrying without tools', err)
+              toolsEnabled = false
+              stream = await createStream(false)
+            }
+
+            const toolCallChunks: ToolCallDelta[][] = []
+            let finishReason: string | null = null
+
+            for await (const chunk of stream) {
+              const choice = chunk.choices[0]
+              const text = choice?.delta?.content ?? ''
+              if (text) {
+                assistantReply += text
+                controller.enqueue(encoder.encode(text))
+              }
+              if (choice?.delta?.tool_calls) {
+                toolCallChunks.push(choice.delta.tool_calls as ToolCallDelta[])
+              }
+              if (choice?.finish_reason) finishReason = choice.finish_reason
+            }
+
+            if (finishReason !== 'tool_calls') break
+
+            const calls = assembleToolCallDeltas(toolCallChunks)
+            conversation.push({
+              role: 'assistant',
+              content: null,
+              tool_calls: calls.map((c) => ({
+                id: c.id,
+                type: 'function' as const,
+                function: { name: c.name, arguments: c.arguments },
+              })),
+            })
+            for (const call of calls) {
+              let args: unknown
+              try { args = JSON.parse(call.arguments || '{}') } catch { args = call.arguments }
+              const result = call.name === 'query_receipt_items'
+                ? await executeReceiptQuery(supabase, args)
+                : JSON.stringify({ error: `Unknown tool: ${call.name}` })
+              conversation.push({ role: 'tool', tool_call_id: call.id, content: result })
             }
           }
+
           controller.close()
         } catch (err) {
           controller.error(err)

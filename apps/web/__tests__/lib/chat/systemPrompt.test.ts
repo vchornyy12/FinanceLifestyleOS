@@ -61,4 +61,8 @@ describe('buildSystemPrompt', () => {
   it('shows empty state when no receipts', () => {
     expect(buildSystemPrompt(context)).toContain('No receipts scanned yet.')
   })
+
+  it('tells the model about the query_receipt_items tool', () => {
+    expect(buildSystemPrompt(context)).toContain('query_receipt_items')
+  })
 })
