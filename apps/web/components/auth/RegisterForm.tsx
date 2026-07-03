@@ -12,7 +12,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+      className="w-full rounded-lg bg-mac-accent px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 active:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mac-accent disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {pending ? 'Creating account…' : 'Create account'}
     </button>
@@ -45,18 +45,18 @@ export default function RegisterForm() {
               />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+          <h1 className="text-xl font-semibold text-mac-label">
             Check your email
           </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm text-mac-secondary">
             {state.success}
           </p>
         </div>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-sm text-mac-secondary">
           Already confirmed?{' '}
           <Link
             href="/login"
-            className="font-medium text-zinc-900 underline-offset-4 hover:underline dark:text-zinc-100"
+            className="font-medium text-mac-accent underline-offset-4 hover:underline"
           >
             Sign in
           </Link>
@@ -68,10 +68,10 @@ export default function RegisterForm() {
   return (
     <form action={formAction} className="flex flex-col gap-5">
       <div>
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+        <h1 className="text-xl font-semibold text-mac-label">
           Create an account
         </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-sm text-mac-secondary">
           Start managing your financial lifestyle
         </p>
       </div>
@@ -86,7 +86,7 @@ export default function RegisterForm() {
         <div>
           <label
             htmlFor="email"
-            className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            className="mb-1.5 block text-sm font-medium text-mac-secondary"
           >
             Email
           </label>
@@ -98,11 +98,11 @@ export default function RegisterForm() {
             required
             aria-invalid={!!state?.fieldErrors?.email}
             aria-describedby={state?.fieldErrors?.email ? 'email-error' : undefined}
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+            className="w-full rounded-lg border border-mac-hairline bg-mac-elevated px-3 py-2 text-sm text-mac-label placeholder-mac-tertiary focus:border-mac-accent focus:outline-none focus:ring-2 focus:ring-mac-accent/40"
             placeholder="you@example.com"
           />
           {state?.fieldErrors?.email?.[0] && (
-            <p id="email-error" className="mt-1 text-xs text-red-600 dark:text-red-400">
+            <p id="email-error" className="mt-1 text-xs text-mac-red">
               {state.fieldErrors.email[0]}
             </p>
           )}
@@ -111,7 +111,7 @@ export default function RegisterForm() {
         <div>
           <label
             htmlFor="password"
-            className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            className="mb-1.5 block text-sm font-medium text-mac-secondary"
           >
             Password
           </label>
@@ -123,11 +123,11 @@ export default function RegisterForm() {
             required
             aria-invalid={!!state?.fieldErrors?.password}
             aria-describedby={state?.fieldErrors?.password ? 'password-error' : undefined}
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+            className="w-full rounded-lg border border-mac-hairline bg-mac-elevated px-3 py-2 text-sm text-mac-label placeholder-mac-tertiary focus:border-mac-accent focus:outline-none focus:ring-2 focus:ring-mac-accent/40"
             placeholder="Min 8 chars, include a number"
           />
           {state?.fieldErrors?.password?.[0] && (
-            <p id="password-error" className="mt-1 text-xs text-red-600 dark:text-red-400">
+            <p id="password-error" className="mt-1 text-xs text-mac-red">
               {state.fieldErrors.password[0]}
             </p>
           )}
@@ -136,7 +136,7 @@ export default function RegisterForm() {
         <div>
           <label
             htmlFor="confirmPassword"
-            className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            className="mb-1.5 block text-sm font-medium text-mac-secondary"
           >
             Confirm password
           </label>
@@ -148,11 +148,11 @@ export default function RegisterForm() {
             required
             aria-invalid={!!state?.fieldErrors?.confirmPassword}
             aria-describedby={state?.fieldErrors?.confirmPassword ? 'confirm-password-error' : undefined}
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+            className="w-full rounded-lg border border-mac-hairline bg-mac-elevated px-3 py-2 text-sm text-mac-label placeholder-mac-tertiary focus:border-mac-accent focus:outline-none focus:ring-2 focus:ring-mac-accent/40"
             placeholder="••••••••"
           />
           {state?.fieldErrors?.confirmPassword?.[0] && (
-            <p id="confirm-password-error" className="mt-1 text-xs text-red-600 dark:text-red-400">
+            <p id="confirm-password-error" className="mt-1 text-xs text-mac-red">
               {state.fieldErrors.confirmPassword[0]}
             </p>
           )}
@@ -161,11 +161,11 @@ export default function RegisterForm() {
 
       <SubmitButton />
 
-      <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="text-center text-sm text-mac-secondary">
         Already have an account?{' '}
         <Link
           href="/login"
-          className="font-medium text-zinc-900 underline-offset-4 hover:underline dark:text-zinc-100"
+          className="font-medium text-mac-accent underline-offset-4 hover:underline"
         >
           Sign in
         </Link>

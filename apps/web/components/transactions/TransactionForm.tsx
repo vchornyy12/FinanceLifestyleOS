@@ -78,12 +78,12 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
   const payeePlaceholder = type === 'income' ? 'e.g. Employer' : 'e.g. Biedronka'
 
   const selectClassName =
-    'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-400 dark:focus:ring-zinc-400'
+    'w-full rounded-lg border border-mac-hairline bg-mac-elevated px-3 py-2 text-sm text-mac-label focus:border-mac-accent focus:outline-none focus:ring-2 focus:ring-mac-accent/40'
 
   return (
     <form
       action={formAction}
-      className="flex flex-col gap-5 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
+      className="flex flex-col gap-5 rounded-xl border border-mac-hairline bg-mac-surface p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
     >
       {isEdit && <input type="hidden" name="id" value={transaction.id} />}
       <input type="hidden" name="type" value={type} />
@@ -94,20 +94,20 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
 
       {/* Global error */}
       {state?.error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
+        <p className="rounded-lg bg-mac-red/10 px-3 py-2 text-sm text-mac-red">
           {state.error}
         </p>
       )}
 
       {/* Type segmented control */}
       <div>
-        <span className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+        <span className="mb-1 block text-xs font-medium text-mac-secondary">
           Type
         </span>
         <div
           role="tablist"
           aria-label="Transaction type"
-          className="inline-flex rounded-lg border border-zinc-300 bg-zinc-50 p-1 dark:border-zinc-700 dark:bg-zinc-800"
+          className="inline-flex rounded-lg bg-mac-label/8 p-0.5"
         >
           {TYPE_OPTIONS.map((opt) => {
             const active = type === opt.value
@@ -119,10 +119,10 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
                 aria-selected={active}
                 onClick={() => setType(opt.value)}
                 className={
-                  'rounded-md px-3 py-1.5 text-xs font-medium transition-colors ' +
+                  'rounded-md px-3 py-1 text-xs font-medium transition-colors ' +
                   (active
-                    ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-100'
-                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100')
+                    ? 'bg-mac-surface text-mac-label shadow-[0_1px_2px_rgba(0,0,0,0.12)]'
+                    : 'text-mac-secondary hover:text-mac-label')
                 }
               >
                 {opt.label}
@@ -137,9 +137,9 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
         <div>
           <label
             htmlFor="merchant"
-            className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+            className="mb-1 block text-xs font-medium text-mac-secondary"
           >
-            {payeeLabel} <span className="text-red-500">*</span>
+            {payeeLabel} <span className="text-mac-red">*</span>
           </label>
           <input
             id="merchant"
@@ -149,10 +149,10 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
             defaultValue={defaultMerchant}
             maxLength={200}
             placeholder={payeePlaceholder}
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+            className="w-full rounded-lg border border-mac-hairline bg-mac-elevated px-3 py-2 text-sm text-mac-label placeholder-mac-tertiary focus:border-mac-accent focus:outline-none focus:ring-2 focus:ring-mac-accent/40"
           />
           {state?.fieldErrors?.merchant?.map((msg) => (
-            <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
+            <p key={msg} className="mt-1 text-xs text-mac-red">
               {msg}
             </p>
           ))}
@@ -164,9 +164,9 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
         <div>
           <label
             htmlFor="wallet_id"
-            className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+            className="mb-1 block text-xs font-medium text-mac-secondary"
           >
-            Wallet <span className="text-zinc-400">(optional)</span>
+            Wallet <span className="text-mac-tertiary">(optional)</span>
           </label>
           <select
             key={type}
@@ -183,7 +183,7 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
             ))}
           </select>
           {state?.fieldErrors?.wallet_id?.map((msg) => (
-            <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
+            <p key={msg} className="mt-1 text-xs text-mac-red">
               {msg}
             </p>
           ))}
@@ -196,9 +196,9 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
           <div>
             <label
               htmlFor="from_wallet_id"
-              className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+              className="mb-1 block text-xs font-medium text-mac-secondary"
             >
-              From wallet <span className="text-red-500">*</span>
+              From wallet <span className="text-mac-red">*</span>
             </label>
             <select
               id="from_wallet_id"
@@ -215,7 +215,7 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
               ))}
             </select>
             {state?.fieldErrors?.from_wallet_id?.map((msg) => (
-              <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
+              <p key={msg} className="mt-1 text-xs text-mac-red">
                 {msg}
               </p>
             ))}
@@ -223,9 +223,9 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
           <div>
             <label
               htmlFor="to_wallet_id"
-              className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+              className="mb-1 block text-xs font-medium text-mac-secondary"
             >
-              To wallet <span className="text-red-500">*</span>
+              To wallet <span className="text-mac-red">*</span>
             </label>
             <select
               id="to_wallet_id"
@@ -242,7 +242,7 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
               ))}
             </select>
             {state?.fieldErrors?.to_wallet_id?.map((msg) => (
-              <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
+              <p key={msg} className="mt-1 text-xs text-mac-red">
                 {msg}
               </p>
             ))}
@@ -254,9 +254,9 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
       <div>
         <label
           htmlFor="amount"
-          className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+          className="mb-1 block text-xs font-medium text-mac-secondary"
         >
-          Amount (PLN) <span className="text-red-500">*</span>
+          Amount (PLN) <span className="text-mac-red">*</span>
         </label>
         <input
           id="amount"
@@ -267,10 +267,10 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
           min="0.01"
           defaultValue={defaultAmount}
           placeholder="0.00"
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+          className="w-full rounded-lg border border-mac-hairline bg-mac-elevated px-3 py-2 text-sm text-mac-label placeholder-mac-tertiary focus:border-mac-accent focus:outline-none focus:ring-2 focus:ring-mac-accent/40"
         />
         {state?.fieldErrors?.amount?.map((msg) => (
-          <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
+          <p key={msg} className="mt-1 text-xs text-mac-red">
             {msg}
           </p>
         ))}
@@ -280,9 +280,9 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
       <div>
         <label
           htmlFor="date"
-          className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+          className="mb-1 block text-xs font-medium text-mac-secondary"
         >
-          Date <span className="text-red-500">*</span>
+          Date <span className="text-mac-red">*</span>
         </label>
         <input
           id="date"
@@ -291,10 +291,10 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
           required
           max={today}
           defaultValue={defaultDate}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+          className="w-full rounded-lg border border-mac-hairline bg-mac-elevated px-3 py-2 text-sm text-mac-label focus:border-mac-accent focus:outline-none focus:ring-2 focus:ring-mac-accent/40"
         />
         {state?.fieldErrors?.date?.map((msg) => (
-          <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
+          <p key={msg} className="mt-1 text-xs text-mac-red">
             {msg}
           </p>
         ))}
@@ -304,9 +304,9 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
       <div>
         <label
           htmlFor="note"
-          className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+          className="mb-1 block text-xs font-medium text-mac-secondary"
         >
-          Note <span className="text-zinc-400">(optional)</span>
+          Note <span className="text-mac-tertiary">(optional)</span>
         </label>
         <textarea
           id="note"
@@ -317,10 +317,10 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
           placeholder={
             isTransfer ? 'e.g. Topped up savings' : 'e.g. Weekly groceries run'
           }
-          className="w-full resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+          className="w-full resize-none rounded-lg border border-mac-hairline bg-mac-elevated px-3 py-2 text-sm text-mac-label placeholder-mac-tertiary focus:border-mac-accent focus:outline-none focus:ring-2 focus:ring-mac-accent/40"
         />
         {state?.fieldErrors?.note?.map((msg) => (
-          <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
+          <p key={msg} className="mt-1 text-xs text-mac-red">
             {msg}
           </p>
         ))}
@@ -331,14 +331,14 @@ export default function TransactionForm({ wallets, transaction }: TransactionFor
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          className="rounded-lg bg-mac-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? 'Saving…' : isEdit ? 'Save changes' : 'Add transaction'}
         </button>
         <button
           type="button"
           onClick={() => router.push('/dashboard/transactions')}
-          className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+          className="rounded-lg border border-mac-hairline bg-mac-elevated px-4 py-2 text-sm font-medium text-mac-label transition-colors hover:bg-mac-surface"
         >
           Cancel
         </button>

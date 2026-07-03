@@ -178,8 +178,8 @@ export default function QuickUpload() {
         className={[
           'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 text-center transition-colors',
           isDragging
-            ? 'border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-800'
-            : 'border-zinc-300 bg-white hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600',
+            ? 'border-mac-accent bg-mac-accent/10'
+            : 'border-mac-hairline bg-mac-surface hover:border-mac-tertiary',
         ].join(' ')}
       >
         <input
@@ -196,21 +196,21 @@ export default function QuickUpload() {
 
         {busy ? (
           <>
-            <span className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" aria-hidden="true" />
-            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            <span className="h-6 w-6 animate-spin rounded-full border-2 border-mac-hairline border-t-mac-accent" aria-hidden="true" />
+            <p className="text-sm font-semibold text-mac-label">
               {phase === 'uploading' ? 'Uploading…' : 'Reading your receipt…'}
             </p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs text-mac-secondary">
               You can leave this page — it saves automatically.
             </p>
           </>
         ) : (
           <>
             <span className="text-2xl" aria-hidden="true">🧾</span>
-            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            <p className="text-sm font-semibold text-mac-label">
               Drop a receipt here, or tap to snap one
             </p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs text-mac-secondary">
               That&apos;s it — it&apos;s parsed, categorized, and saved automatically.
             </p>
           </>
@@ -221,8 +221,8 @@ export default function QuickUpload() {
             className={[
               'mt-1 text-sm font-medium',
               phase === 'saved'
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-red-600 dark:text-red-400',
+                ? 'text-mac-green'
+                : 'text-mac-red',
             ].join(' ')}
             role="status"
           >

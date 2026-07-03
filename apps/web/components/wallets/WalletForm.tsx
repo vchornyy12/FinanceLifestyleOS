@@ -31,12 +31,12 @@ export default function WalletForm({ action, wallet }: WalletFormProps) {
   return (
     <form
       action={formAction}
-      className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+      className="rounded-xl border border-mac-hairline bg-mac-surface p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
     >
       {isEdit && <input type="hidden" name="id" value={wallet.id} />}
 
       {state?.errors?._ && (
-        <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
+        <p className="mb-3 rounded-lg bg-mac-red/10 px-3 py-2 text-sm text-mac-red">
           {state.errors._.join(', ')}
         </p>
       )}
@@ -45,7 +45,7 @@ export default function WalletForm({ action, wallet }: WalletFormProps) {
       <div className="mb-4">
         <label
           htmlFor="wallet-name"
-          className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+          className="mb-1 block text-xs font-medium text-mac-secondary"
         >
           Name
         </label>
@@ -57,10 +57,10 @@ export default function WalletForm({ action, wallet }: WalletFormProps) {
           defaultValue={wallet?.name ?? ''}
           maxLength={100}
           placeholder="e.g. Main checking"
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+          className="w-full rounded-lg border border-mac-hairline bg-mac-elevated px-3 py-2 text-sm text-mac-label placeholder-mac-tertiary focus:border-mac-accent focus:outline-none focus:ring-2 focus:ring-mac-accent/40"
         />
         {state?.errors?.name?.map((msg: string) => (
-          <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">{msg}</p>
+          <p key={msg} className="mt-1 text-xs text-mac-red">{msg}</p>
         ))}
       </div>
 
@@ -69,7 +69,7 @@ export default function WalletForm({ action, wallet }: WalletFormProps) {
         <div className="mb-4">
           <label
             htmlFor="wallet-type"
-            className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+            className="mb-1 block text-xs font-medium text-mac-secondary"
           >
             Type
           </label>
@@ -79,7 +79,7 @@ export default function WalletForm({ action, wallet }: WalletFormProps) {
             required
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value as WalletRow['type'])}
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+            className="w-full rounded-lg border border-mac-hairline bg-mac-elevated px-3 py-2 text-sm text-mac-label focus:border-mac-accent focus:outline-none focus:ring-2 focus:ring-mac-accent/40"
           >
             {WALLET_TYPES.map((t) => (
               <option key={t.value} value={t.value}>
@@ -88,7 +88,7 @@ export default function WalletForm({ action, wallet }: WalletFormProps) {
             ))}
           </select>
           {state?.errors?.type?.map((msg: string) => (
-            <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">{msg}</p>
+            <p key={msg} className="mt-1 text-xs text-mac-red">{msg}</p>
           ))}
         </div>
       )}
@@ -97,7 +97,7 @@ export default function WalletForm({ action, wallet }: WalletFormProps) {
       <div className="mb-4">
         <label
           htmlFor="wallet-currency"
-          className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+          className="mb-1 block text-xs font-medium text-mac-secondary"
         >
           Currency
         </label>
@@ -110,10 +110,10 @@ export default function WalletForm({ action, wallet }: WalletFormProps) {
           minLength={3}
           maxLength={3}
           placeholder="PLN"
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+          className="w-full rounded-lg border border-mac-hairline bg-mac-elevated px-3 py-2 text-sm text-mac-label placeholder-mac-tertiary focus:border-mac-accent focus:outline-none focus:ring-2 focus:ring-mac-accent/40"
         />
         {state?.errors?.currency?.map((msg: string) => (
-          <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">{msg}</p>
+          <p key={msg} className="mt-1 text-xs text-mac-red">{msg}</p>
         ))}
       </div>
 
@@ -121,7 +121,7 @@ export default function WalletForm({ action, wallet }: WalletFormProps) {
       <div className="mb-4">
         <label
           htmlFor="wallet-opening-balance"
-          className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+          className="mb-1 block text-xs font-medium text-mac-secondary"
         >
           Opening balance
         </label>
@@ -131,10 +131,10 @@ export default function WalletForm({ action, wallet }: WalletFormProps) {
           type="number"
           step="0.01"
           defaultValue={wallet?.opening_balance ?? 0}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+          className="w-full rounded-lg border border-mac-hairline bg-mac-elevated px-3 py-2 text-sm text-mac-label placeholder-mac-tertiary focus:border-mac-accent focus:outline-none focus:ring-2 focus:ring-mac-accent/40"
         />
         {state?.errors?.opening_balance?.map((msg: string) => (
-          <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">{msg}</p>
+          <p key={msg} className="mt-1 text-xs text-mac-red">{msg}</p>
         ))}
       </div>
 
@@ -143,7 +143,7 @@ export default function WalletForm({ action, wallet }: WalletFormProps) {
         <div className="mb-4">
           <label
             htmlFor="wallet-credit-limit"
-            className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+            className="mb-1 block text-xs font-medium text-mac-secondary"
           >
             Credit limit <span className="text-red-500">*</span>
           </label>
@@ -156,10 +156,10 @@ export default function WalletForm({ action, wallet }: WalletFormProps) {
             required
             defaultValue={wallet?.credit_limit ?? ''}
             placeholder="e.g. 5000.00"
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+            className="w-full rounded-lg border border-mac-hairline bg-mac-elevated px-3 py-2 text-sm text-mac-label placeholder-mac-tertiary focus:border-mac-accent focus:outline-none focus:ring-2 focus:ring-mac-accent/40"
           />
           {state?.errors?.credit_limit?.map((msg: string) => (
-            <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">{msg}</p>
+            <p key={msg} className="mt-1 text-xs text-mac-red">{msg}</p>
           ))}
         </div>
       )}
@@ -169,7 +169,7 @@ export default function WalletForm({ action, wallet }: WalletFormProps) {
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          className="rounded-lg bg-mac-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? 'Saving…' : isEdit ? 'Update wallet' : 'Create wallet'}
         </button>

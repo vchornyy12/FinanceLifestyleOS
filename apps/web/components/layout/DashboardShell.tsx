@@ -15,7 +15,7 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
   const [isChatOpen, setIsChatOpen] = useState(false)
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-mac-canvas">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar 

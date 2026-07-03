@@ -28,8 +28,8 @@ export default async function NewWalletPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">New wallet</h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <h1 className="text-2xl font-semibold text-mac-label">New wallet</h1>
+        <p className="mt-1 text-sm text-mac-secondary">
           Add a new account to track its balance and transactions.
         </p>
       </div>

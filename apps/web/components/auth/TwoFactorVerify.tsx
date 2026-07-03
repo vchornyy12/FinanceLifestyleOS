@@ -10,7 +10,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+      className="w-full rounded-lg bg-mac-accent px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 active:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mac-accent disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {pending ? 'Verifying…' : 'Verify'}
     </button>
@@ -32,10 +32,10 @@ export default function TwoFactorVerify({ factorId }: TwoFactorVerifyProps) {
   return (
     <form action={formAction} className="flex flex-col gap-5">
       <div>
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+        <h1 className="text-xl font-semibold text-mac-label">
           Two-factor authentication
         </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-sm text-mac-secondary">
           Enter the 6-digit code from your authenticator app to continue.
         </p>
       </div>
@@ -54,7 +54,7 @@ export default function TwoFactorVerify({ factorId }: TwoFactorVerifyProps) {
       <div>
         <label
           htmlFor="code"
-          className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          className="mb-1.5 block text-sm font-medium text-mac-secondary"
         >
           Authentication code
         </label>
@@ -67,7 +67,7 @@ export default function TwoFactorVerify({ factorId }: TwoFactorVerifyProps) {
           maxLength={6}
           required
           placeholder="000000"
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400"
+          className="w-full rounded-lg border border-mac-hairline bg-mac-elevated px-3 py-2 text-sm text-mac-label placeholder-mac-tertiary focus:border-mac-accent focus:outline-none focus:ring-2 focus:ring-mac-accent/40"
         />
       </div>
 

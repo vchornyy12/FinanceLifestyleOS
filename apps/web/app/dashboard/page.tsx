@@ -91,22 +91,22 @@ export default async function DashboardPage() {
         {cards.map((card) => (
           <div
             key={card.label}
-            className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+            className="rounded-xl border border-mac-hairline bg-mac-surface p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
           >
-            <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            <p className="text-sm font-medium text-mac-secondary">
               {card.label}
             </p>
             <p
               className={`mt-2 text-3xl font-semibold ${
                 card.tone === 'positive'
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-red-600 dark:text-red-400'
+                  ? 'text-mac-green'
+                  : 'text-mac-red'
               }`}
             >
               {card.value}
             </p>
             {card.hint && (
-              <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">{card.hint}</p>
+              <p className="mt-1 text-xs text-mac-tertiary">{card.hint}</p>
             )}
           </div>
         ))}
@@ -114,31 +114,31 @@ export default async function DashboardPage() {
 
       {/* Spending by category (auto-assigned) */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+        <h2 className="mb-4 text-lg font-semibold text-mac-label">
           Where it went this month
         </h2>
         {breakdown.length === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm text-mac-secondary">
             No expenses yet this month. Upload a receipt above to get started.
           </p>
         ) : (
-          <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="rounded-xl border border-mac-hairline bg-mac-surface p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
             <ul className="flex flex-col gap-3">
               {breakdown.map((cat) => (
                 <li key={cat.categoryId ?? 'other'} className="flex items-center gap-3">
-                  <span className="w-32 truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  <span className="w-32 truncate text-sm font-medium text-mac-label">
                     {cat.name}
                   </span>
-                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-mac-label/8">
                     <span
                       className="block h-full rounded-full"
                       style={{
                         width: `${maxCategoryTotal > 0 ? Math.max(2, (cat.total / maxCategoryTotal) * 100) : 0}%`,
-                        backgroundColor: cat.color ?? '#71717a',
+                        backgroundColor: cat.color ?? 'var(--mac-secondary)',
                       }}
                     />
                   </span>
-                  <span className="w-24 text-right text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  <span className="w-24 text-right text-sm font-semibold text-mac-label">
                     {PLN.format(cat.total)}
                   </span>
                 </li>
@@ -151,42 +151,42 @@ export default async function DashboardPage() {
       {/* Recent transactions */}
       <section>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="text-lg font-semibold text-mac-label">
             Recent transactions
           </h2>
           <Link
             href="/dashboard/transactions"
-            className="text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            className="text-sm text-mac-accent transition-colors hover:underline"
           >
             View all →
           </Link>
         </div>
         {recent.length === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">No transactions yet.</p>
+          <p className="text-sm text-mac-secondary">No transactions yet.</p>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          <div className="overflow-hidden rounded-xl border border-mac-hairline bg-mac-surface shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+            <ul className="divide-y divide-mac-hairline">
               {recent.map((tx) => {
                 const isIncome = tx.type === 'income'
                 const amount = Number(tx.amount)
                 return (
                   <li key={tx.id} className="flex items-center gap-4 px-4 py-3">
-                    <span className="w-14 shrink-0 text-xs text-zinc-400 dark:text-zinc-500">
+                    <span className="w-14 shrink-0 text-xs text-mac-tertiary">
                       {DATE_FMT.format(new Date(tx.date))}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-mac-label">
                       {tx.merchant || tx.note || (isIncome ? 'Income' : 'Expense')}
                     </span>
                     {tx.category && (
-                      <span className="hidden shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 sm:inline dark:bg-zinc-800 dark:text-zinc-400">
+                      <span className="hidden shrink-0 rounded-full bg-mac-label/8 px-2 py-0.5 text-xs text-mac-secondary sm:inline">
                         {tx.category.name}
                       </span>
                     )}
                     <span
                       className={`shrink-0 text-sm font-semibold ${
                         isIncome
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-red-600 dark:text-red-400'
+                          ? 'text-mac-green'
+                          : 'text-mac-red'
                       }`}
                     >
                       {isIncome ? '+' : '−'}{PLN.format(Math.abs(amount))}

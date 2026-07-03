@@ -23,26 +23,26 @@ export default async function WalletsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">Wallets</h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          <h1 className="text-2xl font-semibold text-mac-label">Wallets</h1>
+          <p className="mt-1 text-sm text-mac-secondary">
             Manage your accounts and track balances.
           </p>
         </div>
         <Link
           href="/dashboard/wallets/new"
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          className="rounded-lg bg-mac-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 active:opacity-80"
         >
           Add Wallet
         </Link>
       </div>
 
       {wallets.length === 0 ? (
-        <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <div className="rounded-xl border border-mac-hairline bg-mac-surface p-10 text-center shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <p className="text-sm text-mac-secondary">
             No wallets yet.{' '}
             <Link
               href="/dashboard/wallets/new"
-              className="font-medium text-zinc-900 underline-offset-2 hover:underline dark:text-zinc-100"
+              className="font-medium text-mac-accent underline-offset-2 hover:underline"
             >
               Add your first wallet
             </Link>

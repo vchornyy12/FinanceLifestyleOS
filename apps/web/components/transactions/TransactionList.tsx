@@ -23,9 +23,9 @@ function typePresentation(type: TransactionType) {
   if (type === 'income') {
     return {
       symbol: '+',
-      amountClass: 'text-emerald-600 dark:text-emerald-400',
+      amountClass: 'text-mac-green',
       badgeClass:
-        'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+        'bg-mac-green/15 text-mac-green',
       label: 'Income',
       arrow: '↑',
     }
@@ -33,15 +33,15 @@ function typePresentation(type: TransactionType) {
   if (type === 'transfer') {
     return {
       symbol: '',
-      amountClass: 'text-zinc-700 dark:text-zinc-300',
-      badgeClass: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
+      amountClass: 'text-mac-secondary',
+      badgeClass: 'bg-mac-label/8 text-mac-secondary',
       label: 'Transfer',
       arrow: '↔',
     }
   }
   return {
     symbol: '−',
-    amountClass: 'text-red-600 dark:text-red-400',
+    amountClass: 'text-mac-red',
     badgeClass: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
     label: 'Expense',
     arrow: '↓',
@@ -58,38 +58,38 @@ export default function TransactionList({ initialData }: TransactionListProps) {
 
   if (transactions.length === 0) {
     return (
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="text-sm text-mac-secondary">
         No transactions yet. Add one using the button above.
       </p>
     )
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="overflow-hidden rounded-xl border border-mac-hairline bg-mac-surface shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-800/50">
-            <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+          <tr className="border-b border-mac-hairline bg-mac-label/4">
+            <th className="px-4 py-3 text-left text-xs font-semibold text-mac-secondary">
               Date
             </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+            <th className="px-4 py-3 text-left text-xs font-semibold text-mac-secondary">
               Type
             </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+            <th className="px-4 py-3 text-left text-xs font-semibold text-mac-secondary">
               Description
             </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+            <th className="px-4 py-3 text-left text-xs font-semibold text-mac-secondary">
               Category
             </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+            <th className="px-4 py-3 text-right text-xs font-semibold text-mac-secondary">
               Amount
             </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+            <th className="px-4 py-3 text-right text-xs font-semibold text-mac-secondary">
               Actions
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+        <tbody className="divide-y divide-mac-hairline">
           {transactions.map((transaction) => (
             <TransactionRow
               key={transaction.id}
@@ -131,8 +131,8 @@ function TransactionRow({ transaction, confirming, setConfirming }: TransactionR
       : transaction.merchant
 
   return (
-    <tr className="group transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
-      <td className="whitespace-nowrap px-4 py-3 text-zinc-600 dark:text-zinc-400">
+    <tr className="group transition-colors hover:bg-mac-label/5/40">
+      <td className="whitespace-nowrap px-4 py-3 text-mac-secondary">
         {transaction.date}
       </td>
 
@@ -148,10 +148,10 @@ function TransactionRow({ transaction, confirming, setConfirming }: TransactionR
         </span>
       </td>
 
-      <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">
+      <td className="px-4 py-3 font-medium text-mac-label">
         {description}
         {transaction.note && (
-          <p className="text-xs font-normal text-zinc-400 dark:text-zinc-500">
+          <p className="text-xs font-normal text-mac-tertiary">
             {transaction.note}
           </p>
         )}
@@ -169,12 +169,12 @@ function TransactionRow({ transaction, confirming, setConfirming }: TransactionR
               }}
               aria-hidden="true"
             />
-            <span className="text-zinc-700 dark:text-zinc-300">
+            <span className="text-mac-secondary">
               {transaction.category.name}
             </span>
           </span>
         ) : (
-          <span className="text-zinc-400 dark:text-zinc-500">—</span>
+          <span className="text-mac-tertiary">—</span>
         )}
       </td>
 
@@ -189,7 +189,7 @@ function TransactionRow({ transaction, confirming, setConfirming }: TransactionR
       <td className="whitespace-nowrap px-4 py-3 text-right">
         {isConfirming ? (
           <span className="inline-flex items-center gap-2">
-            <span className="text-xs text-zinc-600 dark:text-zinc-400">Delete?</span>
+            <span className="text-xs text-mac-secondary">Delete?</span>
             <form action={formAction}>
               <input type="hidden" name="id" value={transaction.id} />
               <button
@@ -203,7 +203,7 @@ function TransactionRow({ transaction, confirming, setConfirming }: TransactionR
             <button
               type="button"
               onClick={() => setConfirming(null)}
-              className="rounded-md px-2 py-1 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              className="rounded-md px-2 py-1 text-xs font-medium text-mac-secondary transition-colors hover:bg-mac-label/5 hover:text-mac-label"
             >
               No
             </button>
@@ -212,7 +212,7 @@ function TransactionRow({ transaction, confirming, setConfirming }: TransactionR
           <span className="inline-flex items-center gap-1">
             <Link
               href={`/dashboard/transactions/${transaction.id}/edit`}
-              className="rounded-md px-2 py-1 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+              className="rounded-md px-2 py-1 text-xs font-medium text-mac-secondary transition-colors hover:bg-mac-label/5 hover:text-mac-label"
             >
               Edit
             </Link>
@@ -226,7 +226,7 @@ function TransactionRow({ transaction, confirming, setConfirming }: TransactionR
           </span>
         )}
         {state?.error && (
-          <p className="mt-1 text-xs text-red-600 dark:text-red-400">{state.error}</p>
+          <p className="mt-1 text-xs text-mac-red">{state.error}</p>
         )}
       </td>
     </tr>

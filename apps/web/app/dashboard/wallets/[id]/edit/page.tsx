@@ -46,8 +46,8 @@ export default async function EditWalletPage({ params }: EditWalletPageProps) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">Edit wallet</h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <h1 className="text-2xl font-semibold text-mac-label">Edit wallet</h1>
+        <p className="mt-1 text-sm text-mac-secondary">
           Update the details of this wallet.
         </p>
       </div>

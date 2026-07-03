@@ -51,16 +51,16 @@ export default async function TransactionsPage({
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+          <h1 className="text-2xl font-semibold text-mac-label">
             Transactions
           </h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-sm text-mac-secondary">
             View and manage your financial transactions.
           </p>
         </div>
         <Link
           href="/dashboard/transactions/new"
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          className="rounded-lg bg-mac-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 active:opacity-80"
         >
           + New transaction
         </Link>
@@ -69,7 +69,7 @@ export default async function TransactionsPage({
       {/* Filter bar */}
       <nav
         aria-label="Filter by type"
-        className="inline-flex rounded-lg border border-zinc-200 bg-white p-1 dark:border-zinc-800 dark:bg-zinc-900"
+        className="inline-flex rounded-lg bg-mac-label/8 p-0.5"
       >
         {FILTER_OPTIONS.map((opt) => {
           const active = activeKey === opt.value
@@ -81,8 +81,8 @@ export default async function TransactionsPage({
               className={
                 'rounded-md px-3 py-1.5 text-xs font-medium transition-colors ' +
                 (active
-                  ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                  : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800')
+                  ? 'bg-mac-surface text-mac-label shadow-[0_1px_2px_rgba(0,0,0,0.12)]'
+                  : 'text-mac-secondary hover:text-mac-label')
               }
             >
               {opt.label}
