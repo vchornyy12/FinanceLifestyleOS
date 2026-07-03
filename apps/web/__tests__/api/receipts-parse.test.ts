@@ -13,6 +13,7 @@ process.env.URL ??= 'http://localhost:8888'
 
 const mockGetUser = vi.fn()
 const mockJobInsert = vi.fn()
+let capturedJobInsert: Record<string, unknown> | null = null
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
@@ -20,7 +21,10 @@ vi.mock('@supabase/supabase-js', () => ({
     from: (table: string) => {
       if (table === 'receipt_parse_jobs') {
         return {
-          insert: () => ({ select: () => ({ single: mockJobInsert }) }),
+          insert: (row: Record<string, unknown>) => {
+            capturedJobInsert = row
+            return { select: () => ({ single: mockJobInsert }) }
+          },
         }
       }
       return {}
@@ -56,7 +60,10 @@ function setupHappyPath() {
 }
 
 describe('POST /api/receipts/parse', () => {
-  beforeEach(() => { vi.clearAllMocks() })
+  beforeEach(() => {
+    vi.clearAllMocks()
+    capturedJobInsert = null
+  })
 
   describe('authentication', () => {
     it('returns 401 when Authorization header is missing', async () => {
@@ -123,6 +130,20 @@ describe('POST /api/receipts/parse', () => {
       expect(res.status).toBe(202)
       const body = await res.json()
       expect(body.jobId).toBe(VALID_JOB_ID)
+    })
+
+    it('stores auto_save=true on the job when requested', async () => {
+      setupHappyPath()
+      const res = await POST(makeRequest({ authHeader: `Bearer ${VALID_TOKEN}`, body: { storagePath: `${VALID_USER_ID}/r.jpg`, autoSave: true } }) as never)
+      expect(res.status).toBe(202)
+      expect(capturedJobInsert).toMatchObject({ auto_save: true })
+    })
+
+    it('defaults auto_save to false when not sent', async () => {
+      setupHappyPath()
+      const res = await POST(makeRequest({ authHeader: `Bearer ${VALID_TOKEN}`, body: { storagePath: `${VALID_USER_ID}/r.jpg` } }) as never)
+      expect(res.status).toBe(202)
+      expect(capturedJobInsert).toMatchObject({ auto_save: false })
     })
 
     it('triggers the background function', async () => {

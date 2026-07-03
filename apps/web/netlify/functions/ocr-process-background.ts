@@ -12,6 +12,7 @@ import { ParsedReceiptSchema } from '../../lib/ocr/receiptSchema'
 import { normalizeReceiptItem } from '../../lib/normalization/normalize'
 import { getEnrichmentProvider } from '../../lib/enrichment/factory'
 import { lookupCategoryFromHistory } from '../../lib/supabase/queries/categoryLearning'
+import { autoSaveReceipt } from '../../lib/receipts/autoSave'
 
 const PDF_LIMIT = 20 * 1024 * 1024
 const TEXT_LIMIT = 1 * 1024 * 1024
@@ -48,7 +49,7 @@ export async function processOcrJob(jobId: string): Promise<void> {
 
   const { data: job, error: jobFetchError } = await supabase
     .from('receipt_parse_jobs')
-    .select('id, user_id, storage_path, status')
+    .select('id, user_id, storage_path, status, auto_save')
     .eq('id', jobId)
     .single()
 
@@ -211,9 +212,24 @@ export async function processOcrJob(jobId: string): Promise<void> {
 
     const result = { ...receipt, items: enrichedItems }
 
+    // Zero-touch flow: jobs flagged auto_save are saved server-side so the
+    // client's only step is the upload itself.
+    let transactionId: string | null = null
+    if (job.auto_save) {
+      try {
+        const saved = await autoSaveReceipt(supabase, job.user_id, result)
+        transactionId = saved.transactionId
+      } catch (err) {
+        console.error('[ocr-bg] auto_save_error: jobId=%s', jobId, err)
+        return failJob('SAVE_FAILED')
+      }
+    }
+
+    const finalResult = transactionId ? { ...result, transaction_id: transactionId } : result
+
     const { error: doneUpdateError } = await supabase
       .from('receipt_parse_jobs')
-      .update({ status: 'done', result, updated_at: new Date().toISOString() })
+      .update({ status: 'done', result: finalResult, updated_at: new Date().toISOString() })
       .eq('id', jobId)
     if (doneUpdateError) {
       console.error('[ocr-bg] done_write_error: jobId=%s', jobId, doneUpdateError.message)

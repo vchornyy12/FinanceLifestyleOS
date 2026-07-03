@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 
 export interface TopProduct {
@@ -20,8 +21,8 @@ function monthBounds(yearMonth: string): { first: string; last: string } {
  * Joins receipt_items → transactions to filter by date.
  * RLS enforces user scoping — no manual user_id filter needed.
  */
-export async function getTopProducts(yearMonth: string): Promise<TopProduct[]> {
-  const supabase = await createClient()
+export async function getTopProducts(yearMonth: string, supabaseClient?: SupabaseClient): Promise<TopProduct[]> {
+  const supabase = supabaseClient || await createClient()
   const { first, last } = monthBounds(yearMonth)
 
   const { data, error } = await supabase

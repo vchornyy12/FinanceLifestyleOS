@@ -10,11 +10,13 @@ export type TransactionWithCategory = Transaction & {
  * category name and color, ordered by date desc then created_at desc.
  *
  * @param typeFilter Optional — restrict to a single transaction type.
+ * @param limit Optional — cap the number of rows returned (most recent first).
  *
  * RLS ensures only the current user's rows are returned.
  */
 export async function getTransactions(
   typeFilter?: TransactionType,
+  limit?: number,
 ): Promise<TransactionWithCategory[]> {
   const supabase = await createClient()
 
@@ -29,6 +31,10 @@ export async function getTransactions(
 
   if (typeFilter) {
     query = query.eq('type', typeFilter)
+  }
+
+  if (limit) {
+    query = query.limit(limit)
   }
 
   const { data, error } = await query

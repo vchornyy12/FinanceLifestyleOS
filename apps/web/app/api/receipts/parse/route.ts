@@ -43,7 +43,10 @@ function checkRateLimit(userId: string): boolean {
   return true
 }
 
-const RequestSchema = z.object({ storagePath: z.string().min(1).max(512) })
+const RequestSchema = z.object({
+  storagePath: z.string().min(1).max(512),
+  autoSave: z.boolean().optional().default(false),
+})
 const SAFE_PATH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[\w\-.]{1,200}$/i
 
 export async function POST(req: NextRequest) {
@@ -72,7 +75,7 @@ export async function POST(req: NextRequest) {
     if (!parseResult.success) {
       return NextResponse.json({ error: 'INVALID_REQUEST' }, { status: 400 })
     }
-    const { storagePath } = parseResult.data
+    const { storagePath, autoSave } = parseResult.data
 
     if (!storagePath.startsWith(user.id + '/')) {
       return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
@@ -84,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     const { data: job, error: jobError } = await getSupabaseAdmin()
       .from('receipt_parse_jobs')
-      .insert({ user_id: user.id, storage_path: storagePath })
+      .insert({ user_id: user.id, storage_path: storagePath, auto_save: autoSave })
       .select('id')
       .single()
 

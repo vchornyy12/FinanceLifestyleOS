@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Category, TransactionType, WalletWithBalance } from '@/types/database'
+import type { TransactionType, WalletWithBalance } from '@/types/database'
 import type { TransactionWithCategory } from '@/lib/supabase/queries/transactions'
 import {
   createTransaction,
@@ -28,7 +28,6 @@ const WALLET_ICON: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 interface TransactionFormProps {
-  categories: Category[]
   wallets: WalletWithBalance[]
   /** When provided the form operates in edit mode; omit for create mode. */
   transaction?: TransactionWithCategory
@@ -44,7 +43,7 @@ const TYPE_OPTIONS: Array<{ value: TransactionType; label: string }> = [
 // Component
 // ---------------------------------------------------------------------------
 
-export default function TransactionForm({ categories, wallets, transaction }: TransactionFormProps) {
+export default function TransactionForm({ wallets, transaction }: TransactionFormProps) {
   const router = useRouter()
   const isEdit = transaction !== undefined
 
@@ -75,21 +74,6 @@ export default function TransactionForm({ categories, wallets, transaction }: Tr
   const defaultToWalletId = transaction?.to_wallet_id ?? ''
 
   const isTransfer = type === 'transfer'
-  const filteredCategories = isTransfer
-    ? []
-    : categories.filter((c) => c.type === type || c.type === 'any')
-
-  // Group into parent → children for optgroup rendering
-  const categoryTree = (() => {
-    const parents = filteredCategories.filter((c) => c.parent_id === null)
-    const childrenMap = new Map<string, typeof categories>()
-    for (const c of filteredCategories) {
-      if (c.parent_id) {
-        childrenMap.set(c.parent_id, [...(childrenMap.get(c.parent_id) ?? []), c])
-      }
-    }
-    return parents.map((p) => ({ parent: p, children: childrenMap.get(p.id) ?? [] }))
-  })()
   const payeeLabel = type === 'income' ? 'Source' : 'Merchant'
   const payeePlaceholder = type === 'income' ? 'e.g. Employer' : 'e.g. Biedronka'
 
@@ -103,6 +87,10 @@ export default function TransactionForm({ categories, wallets, transaction }: Tr
     >
       {isEdit && <input type="hidden" name="id" value={transaction.id} />}
       <input type="hidden" name="type" value={type} />
+      {/* Categories are auto-assigned; preserve the existing one across edits. */}
+      {!isTransfer && defaultCategoryId && (
+        <input type="hidden" name="category_id" value={defaultCategoryId} />
+      )}
 
       {/* Global error */}
       {state?.error && (
@@ -287,47 +275,6 @@ export default function TransactionForm({ categories, wallets, transaction }: Tr
           </p>
         ))}
       </div>
-
-      {/* Category (not shown for transfers — usually categorised by account movement not taxonomy) */}
-      {!isTransfer && (
-        <div>
-          <label
-            htmlFor="category_id"
-            className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
-          >
-            Category
-          </label>
-          <select
-            key={type}
-            id="category_id"
-            name="category_id"
-            defaultValue={defaultCategoryId}
-            className={selectClassName}
-          >
-            <option value="">No category</option>
-            {categoryTree.map(({ parent, children }) =>
-              children.length > 0 ? (
-                <optgroup key={parent.id} label={parent.name}>
-                  {children.map((child) => (
-                    <option key={child.id} value={child.id}>
-                      {child.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : (
-                <option key={parent.id} value={parent.id}>
-                  {parent.name}
-                </option>
-              ),
-            )}
-          </select>
-          {state?.fieldErrors?.category_id?.map((msg) => (
-            <p key={msg} className="mt-1 text-xs text-red-600 dark:text-red-400">
-              {msg}
-            </p>
-          ))}
-        </div>
-      )}
 
       {/* Date */}
       <div>

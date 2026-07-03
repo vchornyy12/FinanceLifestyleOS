@@ -14,6 +14,7 @@ const mockMessagesCreate = vi.fn()
 const mockJobSelect = vi.fn()
 const mockJobUpdate = vi.fn()
 const mockRpc = vi.fn()
+const jobUpdates: Array<Record<string, unknown>> = []
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
@@ -24,7 +25,8 @@ vi.mock('@supabase/supabase-js', () => ({
       if (table === 'receipt_parse_jobs') {
         return {
           select: () => ({ eq: () => ({ single: mockJobSelect }) }),
-          update: (data: unknown) => {
+          update: (data: Record<string, unknown>) => {
+            jobUpdates.push(data)
             const chain: Record<string, unknown> = {
               _data: data,
               eq: () => chain,
@@ -38,6 +40,11 @@ vi.mock('@supabase/supabase-js', () => ({
       return {}
     },
   }),
+}))
+
+const mockAutoSave = vi.fn()
+vi.mock('../../lib/receipts/autoSave', () => ({
+  autoSaveReceipt: (...args: unknown[]) => mockAutoSave(...args),
 }))
 
 vi.mock('@anthropic-ai/sdk', () => ({
@@ -78,7 +85,7 @@ const VALID_CLAUDE_RESPONSE = {
 
 function setupHappyPath() {
   mockJobSelect.mockResolvedValue({
-    data: { id: VALID_JOB_ID, user_id: VALID_USER_ID, storage_path: VALID_STORAGE_PATH, status: 'pending' },
+    data: { id: VALID_JOB_ID, user_id: VALID_USER_ID, storage_path: VALID_STORAGE_PATH, status: 'pending', auto_save: false },
     error: null,
   })
   mockCreateSignedUrl.mockResolvedValue({
@@ -110,7 +117,10 @@ function setupHappyPath() {
 }
 
 describe('processOcrJob', () => {
-  beforeEach(() => { vi.clearAllMocks() })
+  beforeEach(() => {
+    vi.clearAllMocks()
+    jobUpdates.length = 0
+  })
 
   it('fetches job, calls Claude, and does not throw on valid JPEG receipt', async () => {
     setupHappyPath()
@@ -171,5 +181,45 @@ describe('processOcrJob', () => {
     expect(mockRpc).toHaveBeenCalledWith('lookup_category_from_history', expect.objectContaining({
       p_user_id: VALID_USER_ID,
     }))
+  })
+
+  it('does not auto-save when the job has auto_save=false', async () => {
+    setupHappyPath()
+    await processOcrJob(VALID_JOB_ID)
+    expect(mockAutoSave).not.toHaveBeenCalled()
+  })
+
+  it('auto-saves and stores transaction_id in the result when auto_save=true', async () => {
+    setupHappyPath()
+    mockJobSelect.mockResolvedValue({
+      data: { id: VALID_JOB_ID, user_id: VALID_USER_ID, storage_path: VALID_STORAGE_PATH, status: 'pending', auto_save: true },
+      error: null,
+    })
+    mockAutoSave.mockResolvedValue({ transactionId: 'tx-1' })
+
+    await processOcrJob(VALID_JOB_ID)
+
+    expect(mockAutoSave).toHaveBeenCalledWith(
+      expect.anything(),
+      VALID_USER_ID,
+      expect.objectContaining({ store: 'Biedronka' }),
+    )
+    const doneUpdate = jobUpdates.find((u) => u.status === 'done') as { result?: { transaction_id?: string } }
+    expect(doneUpdate?.result?.transaction_id).toBe('tx-1')
+  })
+
+  it('marks the job SAVE_FAILED when auto-save throws', async () => {
+    setupHappyPath()
+    mockJobSelect.mockResolvedValue({
+      data: { id: VALID_JOB_ID, user_id: VALID_USER_ID, storage_path: VALID_STORAGE_PATH, status: 'pending', auto_save: true },
+      error: null,
+    })
+    mockAutoSave.mockRejectedValue(new Error('insert failed'))
+
+    await processOcrJob(VALID_JOB_ID)
+
+    const errorUpdate = jobUpdates.find((u) => u.status === 'error')
+    expect(errorUpdate).toMatchObject({ error_code: 'SAVE_FAILED' })
+    expect(jobUpdates.find((u) => u.status === 'done')).toBeUndefined()
   })
 })

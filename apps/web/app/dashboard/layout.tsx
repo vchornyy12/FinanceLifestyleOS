@@ -1,9 +1,7 @@
 import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import Sidebar from '@/components/layout/Sidebar'
-import TopBar from '@/components/layout/TopBar'
-import ChatSidebar from '@/components/layout/ChatSidebar'
+import DashboardShell from '@/components/layout/DashboardShell'
 
 export default async function DashboardLayout({
   children,
@@ -19,18 +17,5 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
-  return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <TopBar user={user} />
-        <div className="flex flex-1 overflow-hidden">
-          <main className="flex-1 overflow-y-auto p-6">
-            {children}
-          </main>
-          <ChatSidebar />
-        </div>
-      </div>
-    </div>
-  )
+  return <DashboardShell user={user}>{children}</DashboardShell>
 }

@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import type { Category } from '@/types/database'
 import type { TransactionWithCategory } from '@/lib/supabase/queries/transactions'
 import { getUserWalletsWithBalances } from '@/lib/supabase/queries/wallets'
 import TransactionForm from '@/components/transactions/TransactionForm'
@@ -37,18 +36,6 @@ export default async function EditTransactionPage({ params }: EditTransactionPag
     redirect('/dashboard/transactions')
   }
 
-  // Fetch all categories for the dropdown
-  const { data: categoriesData, error: catError } = await supabase
-    .from('categories')
-    .select('*')
-    .order('name', { ascending: true })
-
-  if (catError) {
-    throw new Error(`Failed to load categories: ${catError.message}`)
-  }
-
-  const categories: Category[] = categoriesData ?? []
-
   // Fetch user wallets for the wallet selector
   const wallets = await getUserWalletsWithBalances(supabase)
 
@@ -67,7 +54,6 @@ export default async function EditTransactionPage({ params }: EditTransactionPag
       {/* Form */}
       <div className="max-w-lg">
         <TransactionForm
-          categories={categories}
           wallets={wallets}
           transaction={transaction as TransactionWithCategory}
         />

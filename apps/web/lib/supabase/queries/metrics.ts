@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 
 export interface MonthlyMetrics {
@@ -6,7 +7,7 @@ export interface MonthlyMetrics {
   net: number
 }
 
-function monthBounds(yearMonth: string): { first: string; last: string } {
+export function monthBounds(yearMonth: string): { first: string; last: string } {
   const [y, m] = yearMonth.split('-').map(Number)
   const first = `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-01`
   const nextMonthFirst = new Date(Date.UTC(y, m, 1))
@@ -22,8 +23,8 @@ function monthBounds(yearMonth: string): { first: string; last: string } {
  *
  * RLS enforces the user filter; no manual user_id is required.
  */
-export async function getMonthlyMetrics(yearMonth: string): Promise<MonthlyMetrics> {
-  const supabase = await createClient()
+export async function getMonthlyMetrics(yearMonth: string, supabaseClient?: SupabaseClient): Promise<MonthlyMetrics> {
+  const supabase = supabaseClient || await createClient()
   const { first, last } = monthBounds(yearMonth)
 
   const { data, error } = await supabase

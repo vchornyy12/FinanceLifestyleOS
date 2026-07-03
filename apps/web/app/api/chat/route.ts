@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseJSClient } from '@supabase/supabase-js'
 import { getMonthlyMetrics } from '@/lib/supabase/queries/metrics'
 import { getUserWalletsWithBalances } from '@/lib/supabase/queries/wallets'
 import { getTopProducts } from '@/lib/supabase/queries/receiptItems'
@@ -43,10 +44,35 @@ function currentYearMonth(): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'UNAUTHENTICATED' }), { status: 401 })
+    const authHeader = req.headers.get('Authorization')
+    let supabase
+    let user
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      supabase = createSupabaseJSClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        }
+      )
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+      if (authError || !authUser) {
+        return new Response(JSON.stringify({ error: 'UNAUTHENTICATED' }), { status: 401 })
+      }
+      user = authUser
+    } else {
+      supabase = await createClient()
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+      if (authError || !authUser) {
+        return new Response(JSON.stringify({ error: 'UNAUTHENTICATED' }), { status: 401 })
+      }
+      user = authUser
     }
 
     if (!checkRateLimit(user.id)) {
@@ -70,7 +96,7 @@ export async function POST(req: NextRequest) {
     // Fetch financial context in parallel
     const yearMonth = currentYearMonth()
     const [metrics, wallets, txResult, topProducts] = await Promise.all([
-      getMonthlyMetrics(yearMonth),
+      getMonthlyMetrics(yearMonth, supabase),
       getUserWalletsWithBalances(supabase),
       supabase
         .from('transactions')
@@ -78,7 +104,7 @@ export async function POST(req: NextRequest) {
         .eq('user_id', user.id)
         .order('date', { ascending: false })
         .limit(50),
-      getTopProducts(yearMonth),
+      getTopProducts(yearMonth, supabase),
     ])
 
     const transactions = (txResult.data ?? []).map((t) => ({

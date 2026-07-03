@@ -112,7 +112,9 @@ export type CategoryUpdate = Partial<Omit<CategoryRow, 'id' | 'user_id' | 'creat
 export type TransactionUpdate = Partial<Omit<TransactionRow, 'id' | 'user_id' | 'created_at'>>
 
 // ---------------------------------------------------------------------------
-// ReceiptParseJob types (migration 015)
+// ReceiptParseJob types (migrations 015 + 017)
+// auto_save added manually for migration 017 — regenerate via
+// `supabase gen types` after applying it to keep this file canonical.
 // ---------------------------------------------------------------------------
 
 export type OcrJobStatus = 'pending' | 'processing' | 'done' | 'error'
@@ -124,6 +126,7 @@ export type ReceiptParseJobRow = {
   status: OcrJobStatus
   result: Record<string, unknown> | null
   error_code: string | null
+  auto_save: boolean
   created_at: string
   updated_at: string
 }
@@ -135,6 +138,7 @@ export type ReceiptParseJobInsert = {
   status?: OcrJobStatus
   result?: Record<string, unknown> | null
   error_code?: string | null
+  auto_save?: boolean
 }
 
 export type ReceiptParseJobUpdate = Partial<Omit<ReceiptParseJobRow, 'id' | 'user_id' | 'created_at'>>

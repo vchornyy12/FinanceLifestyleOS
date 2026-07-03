@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import type { Category } from '@/types/database'
 import { getUserWalletsWithBalances } from '@/lib/supabase/queries/wallets'
 import TransactionForm from '@/components/transactions/TransactionForm'
 
@@ -19,18 +18,6 @@ export default async function NewTransactionPage() {
     redirect('/login')
   }
 
-  // Fetch all categories (system + user) for the dropdown
-  const { data, error } = await supabase
-    .from('categories')
-    .select('*')
-    .order('name', { ascending: true })
-
-  if (error) {
-    throw new Error(`Failed to load categories: ${error.message}`)
-  }
-
-  const categories: Category[] = data ?? []
-
   // Fetch user wallets for the wallet selector
   const wallets = await getUserWalletsWithBalances(supabase)
 
@@ -48,7 +35,7 @@ export default async function NewTransactionPage() {
 
       {/* Form */}
       <div className="max-w-lg">
-        <TransactionForm categories={categories} wallets={wallets} />
+        <TransactionForm wallets={wallets} />
       </div>
     </div>
   )
