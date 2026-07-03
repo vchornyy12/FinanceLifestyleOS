@@ -60,7 +60,7 @@ Mobile talks to these web routes via `EXPO_PUBLIC_API_BASE_URL` — the Next.js 
 
 **AI Chat coach** (`apps/web/app/api/chat/route.ts`):
 - Uses the NVIDIA NIM API via the OpenAI SDK (`NVIDIA_API_KEY`, `NVIDIA_BASE_URL`).
-- Builds a system prompt from live financial context: monthly metrics, wallet balances, recent transactions, and top receipt products (`lib/chat/systemPrompt.ts`).
+- Builds a system prompt from live financial context: monthly metrics, wallet balances, recent transactions, top receipt products, and line items of the 10 most recent receipts (capped at 150 items) (`lib/chat/systemPrompt.ts`).
 - 20 req/hour in-memory rate limit per user. Accepts Bearer auth (for mobile) or cookie session.
 
 **Product normalization + enrichment pipeline** (`apps/web/lib/normalization/`, `apps/web/lib/enrichment/`):

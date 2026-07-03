@@ -25,6 +25,7 @@ describe('buildSystemPrompt', () => {
       { date: '2026-04-15', merchant: 'Biedronka', type: 'expense' as const, amount: '120.50', category: 'Groceries' },
     ],
     topProducts: [],
+    recentReceipts: [],
   }
 
   it('includes monthly income figure', () => {
@@ -37,5 +38,27 @@ describe('buildSystemPrompt', () => {
 
   it('includes transaction merchant', () => {
     expect(buildSystemPrompt(context)).toContain('Biedronka')
+  })
+
+  it('renders receipt line items grouped by receipt', () => {
+    const prompt = buildSystemPrompt({
+      ...context,
+      recentReceipts: [
+        {
+          merchant: 'Lidl', date: '2026-04-20', total: '10.48',
+          items: [
+            { name: 'Chleb zwykły', quantity: 1, total_price: 3.49, category: 'Groceries' },
+            { name: 'Mleko 2%', quantity: 2, total_price: 6.99, category: null },
+          ],
+        },
+      ],
+    })
+    expect(prompt).toContain('### Lidl — 2026-04-20 — 10.48 PLN')
+    expect(prompt).toContain('- Chleb zwykły ×1 — 3.49 (Groceries)')
+    expect(prompt).toContain('- Mleko 2% ×2 — 6.99 (—)')
+  })
+
+  it('shows empty state when no receipts', () => {
+    expect(buildSystemPrompt(context)).toContain('No receipts scanned yet.')
   })
 })

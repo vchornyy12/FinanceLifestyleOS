@@ -58,3 +58,86 @@ export async function getTopProducts(yearMonth: string, supabaseClient?: Supabas
     .sort((a, b) => b.total - a.total)
     .slice(0, 10)
 }
+
+export interface ReceiptItemLine {
+  name: string
+  quantity: number
+  total_price: number
+  category: string | null
+}
+
+export interface ReceiptWithItems {
+  merchant: string
+  date: string
+  total: string
+  items: ReceiptItemLine[]
+}
+
+type RawReceiptRow = {
+  merchant: string
+  date: string
+  amount: string
+  receipt_items: Array<{
+    name: string
+    canonical_product_name: string | null
+    normalized_name: string | null
+    quantity: number
+    total_price: number
+    category: { name: string } | { name: string }[] | null
+  }>
+}
+
+/**
+ * Shape joined transaction→receipt_items rows for the chat prompt.
+ * Rows must be ordered newest-first; receipts are dropped from the tail
+ * (oldest) once the total item count would exceed maxItems.
+ */
+export function shapeReceiptsWithItems(rows: RawReceiptRow[], maxItems = 150): ReceiptWithItems[] {
+  const receipts: ReceiptWithItems[] = []
+  let itemCount = 0
+  for (const row of rows) {
+    if (itemCount + row.receipt_items.length > maxItems) break
+    itemCount += row.receipt_items.length
+    receipts.push({
+      merchant: row.merchant,
+      date: row.date,
+      total: row.amount,
+      items: row.receipt_items.map((item) => ({
+        name: item.canonical_product_name ?? item.normalized_name ?? item.name,
+        quantity: item.quantity,
+        total_price: Number(item.total_price),
+        category: Array.isArray(item.category)
+          ? (item.category[0]?.name ?? null)
+          : (item.category?.name ?? null),
+      })),
+    })
+  }
+  return receipts
+}
+
+/**
+ * Line items of the user's most recent scanned receipts, for the AI coach.
+ * RLS scopes rows to the current user.
+ */
+export async function getRecentReceiptsWithItems(
+  limit = 10,
+  supabaseClient?: SupabaseClient,
+): Promise<ReceiptWithItems[]> {
+  const supabase = supabaseClient || await createClient()
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .select(
+      'merchant, date, amount, receipt_items(name, canonical_product_name, normalized_name, quantity, total_price, category:categories(name))',
+    )
+    .eq('source', 'ocr')
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) {
+    throw new Error(`Failed to fetch recent receipts: ${error.message}`)
+  }
+
+  return shapeReceiptsWithItems((data ?? []) as unknown as RawReceiptRow[])
+}

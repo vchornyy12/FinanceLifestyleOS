@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseJSClient } from '@supabase/supabase-js'
 import { getMonthlyMetrics } from '@/lib/supabase/queries/metrics'
 import { getUserWalletsWithBalances } from '@/lib/supabase/queries/wallets'
-import { getTopProducts } from '@/lib/supabase/queries/receiptItems'
+import { getTopProducts, getRecentReceiptsWithItems } from '@/lib/supabase/queries/receiptItems'
 import { buildSystemPrompt } from '@/lib/chat/systemPrompt'
 
 let _openai: OpenAI | null = null
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
 
     // Fetch financial context in parallel
     const yearMonth = currentYearMonth()
-    const [metrics, wallets, txResult, topProducts] = await Promise.all([
+    const [metrics, wallets, txResult, topProducts, recentReceipts] = await Promise.all([
       getMonthlyMetrics(yearMonth, supabase),
       getUserWalletsWithBalances(supabase),
       supabase
@@ -105,6 +105,8 @@ export async function POST(req: NextRequest) {
         .order('date', { ascending: false })
         .limit(50),
       getTopProducts(yearMonth, supabase),
+      // Receipt line items are additive context — never let them break chat.
+      getRecentReceiptsWithItems(10, supabase).catch(() => []),
     ])
 
     const transactions = (txResult.data ?? []).map((t) => ({
@@ -126,6 +128,7 @@ export async function POST(req: NextRequest) {
       wallets,
       transactions,
       topProducts,
+      recentReceipts,
     })
 
     const model = process.env.NVIDIA_MODEL

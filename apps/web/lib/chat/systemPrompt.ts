@@ -1,6 +1,6 @@
 import type { WalletWithBalance, TransactionType } from '@/types/database'
 import type { MonthlyMetrics } from '@/lib/supabase/queries/metrics'
-import type { TopProduct } from '@/lib/supabase/queries/receiptItems'
+import type { TopProduct, ReceiptWithItems } from '@/lib/supabase/queries/receiptItems'
 
 interface Transaction {
   date: string
@@ -17,6 +17,7 @@ interface PromptContext {
   wallets: WalletWithBalance[]
   transactions: Transaction[]
   topProducts: TopProduct[]
+  recentReceipts: ReceiptWithItems[]
 }
 
 export function buildSystemPrompt(ctx: PromptContext): string {
@@ -31,6 +32,15 @@ export function buildSystemPrompt(ctx: PromptContext): string {
   const productLines = ctx.topProducts
     .map((p, i) => `${i + 1}. ${p.name} — ${p.total.toFixed(2)} PLN (×${p.count})`)
     .join('\n')
+
+  const receiptBlocks = ctx.recentReceipts
+    .map((r) => {
+      const itemLines = r.items
+        .map((i) => `- ${i.name} ×${i.quantity} — ${i.total_price.toFixed(2)} (${i.category ?? '—'})`)
+        .join('\n')
+      return `### ${r.merchant} — ${r.date} — ${Number(r.total).toFixed(2)} PLN\n${itemLines}`
+    })
+    .join('\n\n')
 
   return `You are a personal finance coach for a Polish user.
 Today is ${ctx.today}. All amounts are in PLN unless noted otherwise.
@@ -47,6 +57,9 @@ ${walletLines || 'No wallets yet.'}
 ## Recent transactions
 date       | merchant | type | amount | category
 ${txLines || 'No transactions yet.'}
+
+## Recent receipts (line items)
+${receiptBlocks || 'No receipts scanned yet.'}
 
 ## Top products this month (from scanned receipts)
 ${productLines || 'No receipt data yet.'}
